@@ -4,6 +4,7 @@ Human-readable in a TTY (Rich-style), JSON when stdout is not a TTY (CI / logs).
 Tools and crew internals should `logger = structlog.get_logger(__name__)`.
 The CLI presentation layer keeps using `_info/_ok/_warn/_err` in main.py.
 """
+
 from __future__ import annotations
 
 import logging
@@ -12,6 +13,7 @@ import sys
 
 try:
     import structlog
+
     _HAS_STRUCTLOG = True
 except ImportError:  # graceful fallback for first-time installs
     _HAS_STRUCTLOG = False

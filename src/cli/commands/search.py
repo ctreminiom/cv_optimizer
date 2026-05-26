@@ -2,39 +2,48 @@
 
 Extracted from main.py (SRP Phase 3e). No logic changes.
 """
+
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import os
 import re
 import sys
 import time
 from pathlib import Path
-from typing import Any
 
 from src.company import (
-    KNOWN_CR_COMPANIES as _KNOWN_CR_COMPANIES,
     resolve_company_domain as _resolve_company_domain,
-)
-from src.pipeline.coercion import (
-    as_dict as _as_dict,
-    as_list as _as_list,
-    as_list_of_dicts as _as_list_of_dicts,
 )
 from src.presentation import (
     HAS_RICH as _HAS_RICH,
-    Panel,
+)
+from src.presentation import (
     Table,
+)
+from src.presentation import (
     banner as _banner,
+)
+from src.presentation import (
     console as _console,
+)
+from src.presentation import (
     err as _err,
+)
+from src.presentation import (
     info as _info,
+)
+from src.presentation import (
     ok as _ok,
+)
+from src.presentation import (
     warn as _warn,
 )
 
 __all__ = ["cmd_search"]
+
 
 class _FallbackQ:
     """Minimal questionary-compatible prompts using plain input(), used when questionary is absent."""
@@ -100,15 +109,15 @@ class _FallbackQ:
             return raw in ("y", "yes")
 
     @staticmethod
-    def text(question: str, default: str = "", validate=None) -> "_FallbackQ._Text":
+    def text(question: str, default: str = "", validate=None) -> _FallbackQ._Text:
         return _FallbackQ._Text(question, default, validate)
 
     @staticmethod
-    def select(question: str, choices: list, default: str = "") -> "_FallbackQ._Select":
+    def select(question: str, choices: list, default: str = "") -> _FallbackQ._Select:
         return _FallbackQ._Select(question, choices, default)
 
     @staticmethod
-    def confirm(question: str, default: bool = True) -> "_FallbackQ._Confirm":
+    def confirm(question: str, default: bool = True) -> _FallbackQ._Confirm:
         return _FallbackQ._Confirm(question, default)
 
 
@@ -224,10 +233,10 @@ def _interactive_search_wizard(args: argparse.Namespace) -> argparse.Namespace |
     print()
     _banner("Search Configuration — Confirm")
     rows = [
-        ("CV",          str(args.cv)),
-        ("Location",    args.location),
-        ("Seniority",   args.seniority),
-        ("Modality",    args.modality),
+        ("CV", str(args.cv)),
+        ("Location", args.location),
+        ("Seniority", args.seniority),
+        ("Modality", args.modality),
     ]
     if args.role:
         rows.append(("Roles", args.role))
@@ -236,7 +245,7 @@ def _interactive_search_wizard(args: argparse.Namespace) -> argparse.Namespace |
     if args.contract_type:
         rows.append(("Contract", args.contract_type))
     rows += [
-        ("Min match",   f"{args.min_match}/100"),
+        ("Min match", f"{args.min_match}/100"),
         ("Max results", str(args.max_results)),
     ]
     for label, value in rows:
@@ -250,12 +259,16 @@ def _interactive_search_wizard(args: argparse.Namespace) -> argparse.Namespace |
     return args
 
 
-from src.cli.utils import (
+from src.cli.utils import (  # noqa: E402
     SENIORITY_ORDER as _SENIORITY_ORDER,
+)
+from src.cli.utils import (  # noqa: E402
     seniority_levels as _seniority_levels,
+)
+from src.cli.utils import (  # noqa: E402
     slugify as _slugify,
 )
-
+from src.cli.utils import validate_cv_path as _validate_cv_path  # noqa: E402
 
 _CLOSED_PHRASES = [
     "no longer accepting applications",
@@ -303,26 +316,30 @@ _CLOSED_PHRASES = [
 # Implementations live in src/pipeline/url_filters.py. Underscore aliases
 # preserve the legacy names used at call sites in this file.
 
-from src.pipeline.url_filters import (
-    COSTA_RICA_TERMS as _COSTA_RICA_TERMS,
-    DOMAIN_TO_SOURCE as _DOMAIN_TO_SOURCE,
-    LINKEDIN_AGGREGATOR_PATTERNS as _LINKEDIN_AGGREGATOR_PATTERNS,
-    LOGIN_WALL_PHRASES as _LOGIN_WALL_PHRASES,
-    PROFILE_URL_PATTERNS as _PROFILE_URL_PATTERNS,
-    REMOTE_TERMS as _REMOTE_TERMS,
-    SLUG_STOP_WORDS as _SLUG_STOP_WORDS,
-    STALE_AGE_PATTERNS as _STALE_AGE_PATTERNS,
+from src.pipeline.url_filters import (  # noqa: E402
     content_matches_url_slug as _content_matches_url_slug,
-    is_linkedin_category_aggregator as _is_linkedin_category_aggregator,
-    is_location_relevant as _is_location_relevant,
-    is_login_walled as _is_login_walled,
-    is_stale_listing as _is_stale_listing,
-    is_user_or_company_profile as _is_user_or_company_profile,
-    normalize_source_from_url as _normalize_source_from_url,
-    summarize_extracted_content as _summarize_extracted_content,
-    url_slug_tokens as _url_slug_tokens,
 )
-
+from src.pipeline.url_filters import (  # noqa: E402
+    is_linkedin_category_aggregator as _is_linkedin_category_aggregator,
+)
+from src.pipeline.url_filters import (  # noqa: E402
+    is_location_relevant as _is_location_relevant,
+)
+from src.pipeline.url_filters import (  # noqa: E402
+    is_login_walled as _is_login_walled,
+)
+from src.pipeline.url_filters import (  # noqa: E402
+    is_stale_listing as _is_stale_listing,
+)
+from src.pipeline.url_filters import (  # noqa: E402
+    is_user_or_company_profile as _is_user_or_company_profile,
+)
+from src.pipeline.url_filters import (  # noqa: E402
+    normalize_source_from_url as _normalize_source_from_url,
+)
+from src.pipeline.url_filters import (  # noqa: E402
+    summarize_extracted_content as _summarize_extracted_content,
+)
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Per-listing content parsing — extract structured fields from the Tavily-fetched
@@ -330,8 +347,14 @@ from src.pipeline.url_filters import (
 # ──────────────────────────────────────────────────────────────────────────────
 
 _MODALITY_PATTERNS = [
-    (re.compile(r"\b(fully\s+remote|100%\s+remote|remote[- ]first|work\s+from\s+home|"
-                r"trabaja\s+desde\s+casa|teletrabajo|home\s+office)\b", re.I), "remote"),
+    (
+        re.compile(
+            r"\b(fully\s+remote|100%\s+remote|remote[- ]first|work\s+from\s+home|"
+            r"trabaja\s+desde\s+casa|teletrabajo|home\s+office)\b",
+            re.I,
+        ),
+        "remote",
+    ),
     (re.compile(r"\b(hybrid|h[ií]brido|mixto|home\+office)\b", re.I), "hybrid"),
     (re.compile(r"\b(on[- ]site|on[- ]premises|presencial|in[- ]office)\b", re.I), "on_site"),
     (re.compile(r"\bremote\b", re.I), "remote"),
@@ -375,27 +398,112 @@ _SALARY_PATTERN = re.compile(
 # false positives we can filter later over missing real keywords.
 _TECH_KEYWORDS = {
     # Languages
-    "python", "java", "javascript", "typescript", "go", "golang", "rust", "ruby",
-    "kotlin", "swift", "scala", "c++", "c#", ".net", "php", "perl", "r",
+    "python",
+    "java",
+    "javascript",
+    "typescript",
+    "go",
+    "golang",
+    "rust",
+    "ruby",
+    "kotlin",
+    "swift",
+    "scala",
+    "c++",
+    "c#",
+    ".net",
+    "php",
+    "perl",
+    "r",
     # Frameworks / libs
-    "react", "vue", "angular", "next.js", "nestjs", "node.js", "nodejs", "django",
-    "flask", "fastapi", "spring", "spring boot", "rails", "laravel", "express",
+    "react",
+    "vue",
+    "angular",
+    "next.js",
+    "nestjs",
+    "node.js",
+    "nodejs",
+    "django",
+    "flask",
+    "fastapi",
+    "spring",
+    "spring boot",
+    "rails",
+    "laravel",
+    "express",
     # Cloud / infra
-    "aws", "azure", "gcp", "google cloud", "kubernetes", "k8s", "docker", "terraform",
-    "ansible", "jenkins", "circleci", "github actions", "gitlab ci",
+    "aws",
+    "azure",
+    "gcp",
+    "google cloud",
+    "kubernetes",
+    "k8s",
+    "docker",
+    "terraform",
+    "ansible",
+    "jenkins",
+    "circleci",
+    "github actions",
+    "gitlab ci",
     # Data
-    "sql", "postgresql", "mysql", "mongodb", "redis", "elasticsearch", "kafka",
-    "spark", "hadoop", "snowflake", "databricks", "airflow", "dbt", "tableau",
-    "power bi", "looker",
+    "sql",
+    "postgresql",
+    "mysql",
+    "mongodb",
+    "redis",
+    "elasticsearch",
+    "kafka",
+    "spark",
+    "hadoop",
+    "snowflake",
+    "databricks",
+    "airflow",
+    "dbt",
+    "tableau",
+    "power bi",
+    "looker",
     # Methodologies / PM tools
-    "agile", "scrum", "kanban", "safe", "waterfall", "lean", "six sigma",
-    "jira", "confluence", "asana", "trello", "monday", "clickup", "notion",
-    "ms project", "smartsheet", "azure devops", "miro",
+    "agile",
+    "scrum",
+    "kanban",
+    "safe",
+    "waterfall",
+    "lean",
+    "six sigma",
+    "jira",
+    "confluence",
+    "asana",
+    "trello",
+    "monday",
+    "clickup",
+    "notion",
+    "ms project",
+    "smartsheet",
+    "azure devops",
+    "miro",
     # Roles / certs
-    "pmp", "csm", "psm", "popm", "cspo", "itil", "prince2",
+    "pmp",
+    "csm",
+    "psm",
+    "popm",
+    "cspo",
+    "itil",
+    "prince2",
     # Misc
-    "rest", "graphql", "grpc", "microservices", "ci/cd", "tdd", "bdd",
-    "machine learning", "ml", "ai", "llm", "rag", "nlp", "computer vision",
+    "rest",
+    "graphql",
+    "grpc",
+    "microservices",
+    "ci/cd",
+    "tdd",
+    "bdd",
+    "machine learning",
+    "ml",
+    "ai",
+    "llm",
+    "rag",
+    "nlp",
+    "computer vision",
 }
 
 # Section headers commonly found in job descriptions (English + Spanish).
@@ -419,8 +527,9 @@ _RESPONSIBILITIES_HEADERS = re.compile(
 _SECTION_END = re.compile(r"^\s*(?:#+\s+|---+|\*{3,}|=+)", re.I)
 
 
-def _extract_section_bullets(content: str, header_re: re.Pattern,
-                             max_bullets: int = 8) -> list[str]:
+def _extract_section_bullets(
+    content: str, header_re: re.Pattern, max_bullets: int = 8
+) -> list[str]:
     """Extract bullet/list items under a markdown-ish section heading."""
     if not content:
         return []
@@ -567,8 +676,9 @@ def _expand_skill_tokens(skills: list[str]) -> list[str]:
     return out
 
 
-def _compute_match_score(opp: dict, candidate_skills: list[str],
-                         candidate_titles: list[str]) -> tuple[int, str]:
+def _compute_match_score(
+    opp: dict, candidate_skills: list[str], candidate_titles: list[str]
+) -> tuple[int, str]:
     """Compute a 0–100 match score for one opportunity against the candidate profile.
 
     Score components (capped at 100):
@@ -617,8 +727,19 @@ def _compute_match_score(opp: dict, candidate_skills: list[str],
 
     # Title-token overlap (skip filler words and single-letter tokens).
     title_hits: list[str] = []
-    _filler = {"and", "the", "for", "with", "your", "team", "manager",
-               "specialist", "executive", "coordinator", "leader"}
+    _filler = {
+        "and",
+        "the",
+        "for",
+        "with",
+        "your",
+        "team",
+        "manager",
+        "specialist",
+        "executive",
+        "coordinator",
+        "leader",
+    }
     seen_tok: set = set()
     for t in candidate_titles or []:
         for token in (t or "").split():
@@ -635,8 +756,10 @@ def _compute_match_score(opp: dict, candidate_skills: list[str],
 
     # Seniority match bonus (15 if exact match, 7 if adjacent).
     _ADJACENT = {
-        "junior": {"mid"}, "mid": {"junior", "senior"},
-        "senior": {"mid", "lead"}, "lead": {"senior", "principal"},
+        "junior": {"mid"},
+        "mid": {"junior", "senior"},
+        "senior": {"mid", "lead"},
+        "lead": {"senior", "principal"},
         "principal": {"lead"},
     }
     cand_seniority = ""
@@ -664,20 +787,16 @@ def _compute_match_score(opp: dict, candidate_skills: list[str],
     if skill_hits:
         sample = ", ".join(skill_hits[:6])
         more = "…" if len(skill_hits) > 6 else ""
-        parts.append(f"matches {len(skill_hits)} candidate skill"
-                     f"{'s' if len(skill_hits)!=1 else ''} ({sample}{more}) → +{skill_pts}")
+        parts.append(
+            f"matches {len(skill_hits)} candidate skill"
+            f"{'s' if len(skill_hits) != 1 else ''} ({sample}{more}) → +{skill_pts}"
+        )
     if title_hits:
         parts.append(f"role-title overlap on `{', '.join(title_hits[:4])}` → +{title_pts}")
     if seniority_note:
         parts.append(f"{seniority_note} → +{seniority_pts}")
     rationale = ("; ".join(parts) + ".") if parts else ""
     return score, rationale
-
-
-from src.company import (
-    KNOWN_CR_COMPANIES as _KNOWN_CR_COMPANIES,
-    resolve_company_domain as _resolve_company_domain,
-)
 
 
 def _load_cr_companies_from_env() -> list[dict]:
@@ -711,8 +830,10 @@ def _load_cr_companies_from_env() -> list[dict]:
         out.append({"name": name, "domain": domain})
 
     if unresolved:
-        _warn(f"CR_COMPANIES — no careers domain registered for: "
-              f"{', '.join(unresolved)} (use 'Name:domain.com' format to override).")
+        _warn(
+            f"CR_COMPANIES — no careers domain registered for: "
+            f"{', '.join(unresolved)} (use 'Name:domain.com' format to override)."
+        )
     return out
 
 
@@ -727,8 +848,15 @@ def _classify_company_url(url: str, host: str) -> str:
     # If path is empty (just host) or a known index name → search_url.
     after_host = path.split(host, 1)[-1].rstrip("/")
     if not after_host or after_host.lower() in (
-        "/jobs", "/careers", "/career", "/employment", "/work-with-us",
-        "/join-us", "/positions", "/openings", "/opportunities",
+        "/jobs",
+        "/careers",
+        "/career",
+        "/employment",
+        "/work-with-us",
+        "/join-us",
+        "/positions",
+        "/openings",
+        "/opportunities",
     ):
         return "search_url"
     # PDFs / docs are clearly not job postings — drop later.
@@ -779,8 +907,10 @@ def _search_company_careers_via_serper(
             )
             if resp.status_code == 404:
                 # Endpoint not enabled on this Serper plan — skip silently.
-                _info("Serper Google Jobs endpoint unavailable on this account; "
-                      "company-careers search will use Tavily only.")
+                _info(
+                    "Serper Google Jobs endpoint unavailable on this account; "
+                    "company-careers search will use Tavily only."
+                )
                 serper_jobs_disabled = True
                 continue
             resp.raise_for_status()
@@ -793,22 +923,26 @@ def _search_company_careers_via_serper(
             url = item.get("link") or item.get("share_link") or ""
             company_name_in_result = (item.get("company") or "").lower()
             # Confirm the result is actually from THIS company (not just text match).
-            if name.lower() not in company_name_in_result and \
-               name.lower() not in url.lower() and \
-               name.lower() not in (item.get("title", "")).lower():
+            if (
+                name.lower() not in company_name_in_result
+                and name.lower() not in url.lower()
+                and name.lower() not in (item.get("title", "")).lower()
+            ):
                 continue
-            out.append({
-                "title": item.get("title", "") or f"{name} role",
-                "company": item.get("company") or name,
-                "location": item.get("location") or location,
-                "modality": None,
-                "snippet": (item.get("description") or "")[:400],
-                "url": url,
-                "source": _slugify(name, max_len=20).lower() or "company_careers",
-                "link_type": "direct_listing",
-                "via": "company_careers_search:serper",
-                "seniority": None,
-            })
+            out.append(
+                {
+                    "title": item.get("title", "") or f"{name} role",
+                    "company": item.get("company") or name,
+                    "location": item.get("location") or location,
+                    "modality": None,
+                    "snippet": (item.get("description") or "")[:400],
+                    "url": url,
+                    "source": _slugify(name, max_len=20).lower() or "company_careers",
+                    "link_type": "direct_listing",
+                    "via": "company_careers_search:serper",
+                    "seniority": None,
+                }
+            )
 
     return out
 
@@ -841,8 +975,10 @@ def _search_company_careers_via_tavily(
     # a quota error, both /search and /extract are gated by the same plan.
     global _TAVILY_QUOTA_EXHAUSTED
     if _TAVILY_QUOTA_EXHAUSTED:
-        _info("Skipping Tavily company-careers search — Tavily quota already "
-              "exhausted earlier in this run.")
+        _info(
+            "Skipping Tavily company-careers search — Tavily quota already "
+            "exhausted earlier in this run."
+        )
         return []
 
     out: list[dict] = []
@@ -861,8 +997,10 @@ def _search_company_careers_via_tavily(
         loc_query = location
         if location.lower().strip() in ("costa rica", "costa-rica", "cr"):
             loc_query = '("Costa Rica" OR "San José" OR Heredia OR Cartago OR Alajuela)'
-        query = (f"({kw_phrase}) (job OR career OR position OR hiring) "
-                 f"site:{host}{inurl_part} {loc_query}")
+        query = (
+            f"({kw_phrase}) (job OR career OR position OR hiring) "
+            f"site:{host}{inurl_part} {loc_query}"
+        )
         try:
             resp = requests.post(
                 "https://api.tavily.com/search",
@@ -876,11 +1014,13 @@ def _search_company_careers_via_tavily(
             )
             # Detect quota / rate-limit error and stop hammering the API.
             if resp.status_code in (429, 432):
-                _warn(f"Tavily quota / rate limit reached (status "
-                      f"{resp.status_code}) at {name}. Skipping remaining "
-                      f"{len(companies) - companies.index(company) - 1} "
-                      "company-careers search(es) and falling back to "
-                      "Serper-only for the rest of this run.")
+                _warn(
+                    f"Tavily quota / rate limit reached (status "
+                    f"{resp.status_code}) at {name}. Skipping remaining "
+                    f"{len(companies) - companies.index(company) - 1} "
+                    "company-careers search(es) and falling back to "
+                    "Serper-only for the rest of this run."
+                )
                 _TAVILY_QUOTA_EXHAUSTED = True
                 break
             resp.raise_for_status()
@@ -895,19 +1035,21 @@ def _search_company_careers_via_tavily(
                 continue
             link_type = _classify_company_url(url, host)
             if link_type == "non_job_doc":
-                continue   # drop PDFs / docs
-            out.append({
-                "title": (item.get("title") or "").strip() or f"{name} role",
-                "company": name,
-                "location": location,
-                "modality": None,
-                "snippet": (item.get("content") or "")[:400],
-                "url": url,
-                "source": _slugify(name, max_len=20).lower() or "company_careers",
-                "link_type": link_type,
-                "via": "company_careers_search:tavily",
-                "seniority": None,
-            })
+                continue  # drop PDFs / docs
+            out.append(
+                {
+                    "title": (item.get("title") or "").strip() or f"{name} role",
+                    "company": name,
+                    "location": location,
+                    "modality": None,
+                    "snippet": (item.get("content") or "")[:400],
+                    "url": url,
+                    "source": _slugify(name, max_len=20).lower() or "company_careers",
+                    "link_type": link_type,
+                    "via": "company_careers_search:tavily",
+                    "seniority": None,
+                }
+            )
 
     return out
 
@@ -921,9 +1063,11 @@ def _search_company_careers(
     """Combine Serper Google Jobs (specific postings) + Tavily site: search
     (careers indexes / fallback). Dedupes by URL."""
     serper_results = _search_company_careers_via_serper(
-        companies, role_keywords, location, max_per_company)
+        companies, role_keywords, location, max_per_company
+    )
     tavily_results = _search_company_careers_via_tavily(
-        companies, role_keywords, location, max_per_company)
+        companies, role_keywords, location, max_per_company
+    )
 
     seen: set = set()
     merged: list[dict] = []
@@ -1024,9 +1168,10 @@ def _resolve_listing_urls_to_jobs(
             # jobgether category pages
             or ("jobgether.com/remote-jobs/" in url and "/offer/" not in url)
             # any URL classified as careers index by _classify_company_url
-            or (link_type == "search_url" and any(
-                seg in url for seg in ("/careers", "/jobs", "/employment")
-            ))
+            or (
+                link_type == "search_url"
+                and any(seg in url for seg in ("/careers", "/jobs", "/employment"))
+            )
         )
         if is_listing:
             aggregator_idxs.append(i)
@@ -1036,8 +1181,10 @@ def _resolve_listing_urls_to_jobs(
 
     listing_urls = [opportunities[i].get("url", "") for i in aggregator_idxs]
     listing_urls = [u for u in listing_urls if u]
-    _info(f"Following {len(listing_urls)} listing/aggregator URL(s) to extract "
-          "individual job postings …")
+    _info(
+        f"Following {len(listing_urls)} listing/aggregator URL(s) to extract "
+        "individual job postings …"
+    )
 
     content_map = _tavily_extract_batch(listing_urls)
 
@@ -1056,19 +1203,21 @@ def _resolve_listing_urls_to_jobs(
             if ju in seen_urls:
                 continue
             seen_urls.add(ju)
-            new_jobs.append({
-                # Title/snippet/etc filled in by the Tavily-enrichment pass.
-                "title": "",
-                "company": agg.get("company") or "",
-                "location": agg.get("location") or location_filter,
-                "modality": agg.get("modality"),
-                "snippet": "",
-                "url": ju,
-                "source": _normalize_source_from_url(ju) or "followed",
-                "link_type": "direct_listing",
-                "via": f"followed_from:{agg.get('source','listing')}",
-                "seniority": agg.get("seniority"),
-            })
+            new_jobs.append(
+                {
+                    # Title/snippet/etc filled in by the Tavily-enrichment pass.
+                    "title": "",
+                    "company": agg.get("company") or "",
+                    "location": agg.get("location") or location_filter,
+                    "modality": agg.get("modality"),
+                    "snippet": "",
+                    "url": ju,
+                    "source": _normalize_source_from_url(ju) or "followed",
+                    "link_type": "direct_listing",
+                    "via": f"followed_from:{agg.get('source', 'listing')}",
+                    "seniority": agg.get("seniority"),
+                }
+            )
 
     if new_jobs:
         _ok(f"Extracted {len(new_jobs)} individual job URL(s) from listing pages.")
@@ -1077,8 +1226,7 @@ def _resolve_listing_urls_to_jobs(
     return opportunities + new_jobs
 
 
-def _search_serper_organic(query: str, max_results: int = 10,
-                           gl: str = "cr") -> list[dict]:
+def _search_serper_organic(query: str, max_results: int = 10, gl: str = "cr") -> list[dict]:
     """Use Serper's standard Google /search endpoint to find direct job
     posting URLs. Returns opportunities with link_type='direct_listing'."""
     api_key = os.getenv("SERPER_API_KEY")
@@ -1086,6 +1234,7 @@ def _search_serper_organic(query: str, max_results: int = 10,
         return []
     try:
         import requests
+
         resp = requests.post(
             "https://google.serper.dev/search",
             headers={"X-API-KEY": api_key, "Content-Type": "application/json"},
@@ -1099,23 +1248,25 @@ def _search_serper_organic(query: str, max_results: int = 10,
         return []
 
     out: list[dict] = []
-    for item in (data.get("organic") or []):
+    for item in data.get("organic") or []:
         url = item.get("link") or ""
         if not url:
             continue
         # Only keep results matching a known direct-job-posting pattern.
         is_direct = any(p.search(url) for p in _DIRECT_JOB_URL_PATTERNS)
-        out.append({
-            "title": item.get("title", "") or "",
-            "company": "(see posting)",
-            "location": "Costa Rica",
-            "modality": None,
-            "snippet": (item.get("snippet") or "")[:400],
-            "url": url,
-            "source": _normalize_source_from_url(url) or "serper_organic",
-            "link_type": "direct_listing" if is_direct else "search_url",
-            "via": "serper_organic",
-        })
+        out.append(
+            {
+                "title": item.get("title", "") or "",
+                "company": "(see posting)",
+                "location": "Costa Rica",
+                "modality": None,
+                "snippet": (item.get("snippet") or "")[:400],
+                "url": url,
+                "source": _normalize_source_from_url(url) or "serper_organic",
+                "link_type": "direct_listing" if is_direct else "search_url",
+                "via": "serper_organic",
+            }
+        )
     return out
 
 
@@ -1140,18 +1291,20 @@ def _tavily_extract_batch(urls: list[str]) -> dict[str, str]:
         return {}
     try:
         import requests
+
         resp = requests.post(
             "https://api.tavily.com/extract",
-            headers={"Authorization": f"Bearer {api_key}",
-                     "Content-Type": "application/json"},
+            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
             json={"urls": urls, "extract_depth": "basic"},
             timeout=60,
         )
         if resp.status_code in (429, 432):
             if not _TAVILY_QUOTA_EXHAUSTED:
-                _warn("Tavily extract quota / rate limit reached "
-                      f"(status {resp.status_code}). Keeping Serper search "
-                      "snippets as descriptions and skipping further extracts.")
+                _warn(
+                    "Tavily extract quota / rate limit reached "
+                    f"(status {resp.status_code}). Keeping Serper search "
+                    "snippets as descriptions and skipping further extracts."
+                )
             _TAVILY_QUOTA_EXHAUSTED = True
             return {}
         resp.raise_for_status()
@@ -1204,8 +1357,10 @@ def _enrich_listings_via_tavily(
     direct = [o for o in direct if not _is_linkedin_category_aggregator(o.get("url", ""))]
     aggregator_dropped = pre_count - len(direct)
     if aggregator_dropped:
-        _info(f"Dropped {aggregator_dropped} LinkedIn category aggregator URL(s) "
-              "(search-result pages, not single jobs).")
+        _info(
+            f"Dropped {aggregator_dropped} LinkedIn category aggregator URL(s) "
+            "(search-result pages, not single jobs)."
+        )
 
     if not direct:
         return others
@@ -1217,8 +1372,9 @@ def _enrich_listings_via_tavily(
     def _url_quality(opp: dict) -> int:
         url = opp.get("url") or ""
         if any(p.search(url) for p in _DIRECT_JOB_URL_PATTERNS):
-            return 0   # highest priority: matches a specific posting pattern
+            return 0  # highest priority: matches a specific posting pattern
         return 1
+
     direct.sort(key=_url_quality)
 
     # Hard cap on Tavily extract calls per run — protects against rate
@@ -1228,9 +1384,11 @@ def _enrich_listings_via_tavily(
     except ValueError:
         budget = 100
     if len(direct) > budget:
-        _info(f"Capping Tavily extracts at {budget} (set TAVILY_EXTRACT_BUDGET "
-              f"to override; got {len(direct)} candidates) — taking the "
-              "highest-confidence URLs first.")
+        _info(
+            f"Capping Tavily extracts at {budget} (set TAVILY_EXTRACT_BUDGET "
+            f"to override; got {len(direct)} candidates) — taking the "
+            "highest-confidence URLs first."
+        )
         # Move overflow into `others` as `search_url` so they still appear
         # in Category 2 of the report instead of being silently lost.
         for opp in direct[budget:]:
@@ -1251,7 +1409,7 @@ def _enrich_listings_via_tavily(
     stale = 0
 
     for start in range(0, len(direct), BATCH):
-        batch = direct[start:start + BATCH]
+        batch = direct[start : start + BATCH]
         urls = [o.get("url", "") for o in batch if o.get("url")]
         content_map = _tavily_extract_batch(urls)
 
@@ -1298,8 +1456,7 @@ def _enrich_listings_via_tavily(
             # Location validation — only enforce when a location filter is
             # supplied. Drops foreign-country postings that the search returned.
             if location_filter:
-                if not _is_location_relevant(content, location_filter,
-                                              allow_remote=allow_remote):
+                if not _is_location_relevant(content, location_filter, allow_remote=allow_remote):
                     wrong_location += 1
                     continue
 
@@ -1336,13 +1493,17 @@ def _enrich_listings_via_tavily(
     if expired:
         _info(f"Skipped {expired} expired/closed listing(s).")
     if redirected:
-        _info(f"Skipped {redirected} listing(s) where the URL redirected "
-              "to an unrelated page (slug mismatch).")
+        _info(
+            f"Skipped {redirected} listing(s) where the URL redirected "
+            "to an unrelated page (slug mismatch)."
+        )
     if stale:
         _info(f"Skipped {stale} stale listing(s) (≥ 6 months old).")
     if wrong_location:
-        _info(f"Skipped {wrong_location} listing(s) outside target location "
-              f"({location_filter}{' / remote' if allow_remote else ''}).")
+        _info(
+            f"Skipped {wrong_location} listing(s) outside target location "
+            f"({location_filter}{' / remote' if allow_remote else ''})."
+        )
     if failed:
         _info(f"Skipped {failed} listing(s) that could not be extracted.")
 
@@ -1360,6 +1521,7 @@ def _check_url_available(url: str) -> dict:
         return {"available": False, "accepting": None}
     try:
         import requests
+
         headers = {"User-Agent": "Mozilla/5.0 (cv-optimizer job availability check)"}
         resp = requests.head(url, allow_redirects=True, timeout=6, headers=headers)
         if resp.status_code >= 400:
@@ -1425,8 +1587,10 @@ def _extract_cv_profile_for_report(cv_path: Path) -> dict:
     """Parse the CV and extract structured profile fields for report enrichment.
     Makes one lightweight Haiku call. Returns {} on any failure."""
     import json as _json
+
     try:
         from src.tools import parse_cv as _parse_cv
+
         # parse_cv is a CrewAI @tool — must call its underlying .func to invoke directly.
         cv_raw = _json.loads(_parse_cv.func(str(cv_path)))
         if "error" in cv_raw:
@@ -1442,6 +1606,7 @@ def _extract_cv_profile_for_report(cv_path: Path) -> dict:
     try:
         from src.llm.client import get_default_client
         from src.settings import get_settings as _gs
+
         _llm = get_default_client()
         prompt = (
             "Extract from the CV text below and return ONLY a valid JSON object with these keys "
@@ -1546,18 +1711,18 @@ def _write_opportunity_report(opp: dict, report_dir: Path, index: int) -> Path:
     md_text = "\n".join(lines) + "\n"
     try:
         from src.pdf_renderer import write_pdf_from_markdown
+
         write_pdf_from_markdown(md_text, filepath)
     except Exception as pdf_e:
-        _warn(f"Could not render opportunity PDF ({filepath.name}), "
-              f"falling back to .md: {pdf_e}")
+        _warn(f"Could not render opportunity PDF ({filepath.name}), falling back to .md: {pdf_e}")
         filepath = filepath.with_suffix(".md")
         filepath.write_text(md_text, encoding="utf-8")
     return filepath
 
 
-def _write_search_summary_report(data: dict, output_dir: Path,
-                                   candidate_name: str = "",
-                                   profile_data: dict | None = None) -> Path:
+def _write_search_summary_report(
+    data: dict, output_dir: Path, candidate_name: str = "", profile_data: dict | None = None
+) -> Path:
     """Write a comprehensive candidate-profile + all-opportunities markdown report.
 
     Sections:
@@ -1571,13 +1736,16 @@ def _write_search_summary_report(data: dict, output_dir: Path,
     Always written, even when 0 opportunities are found.
     """
     import datetime as _dt
+
     now = _dt.datetime.now()
     timestamp = now.strftime("%Y-%m-%d %H:%M (local time)")
 
     report_path = output_dir / "job_search_report.pdf"
 
     pd = profile_data or {}
-    name = pd.get("full_name") or data.get("candidate_name") or candidate_name or "*(parsed from CV)*"
+    name = (
+        pd.get("full_name") or data.get("candidate_name") or candidate_name or "*(parsed from CV)*"
+    )
     headline = pd.get("headline") or data.get("candidate_headline")
     summary_text = pd.get("summary")
     skills: list[str] = pd.get("skills") or []
@@ -1590,15 +1758,21 @@ def _write_search_summary_report(data: dict, output_dir: Path,
     search_links = [o for o in all_opps if o.get("link_type") != "direct_listing"]
 
     from collections import Counter as _Counter
+
     seniority_counts = _Counter(
         o.get("seniority") or "unspecified" for o in all_opps if o.get("seniority")
     )
-    seniority_breakdown = ", ".join(
-        f"{lvl}: {cnt}" for lvl, cnt in sorted(
-            seniority_counts.items(),
-            key=lambda x: _SENIORITY_ORDER.index(x[0]) if x[0] in _SENIORITY_ORDER else 99,
+    seniority_breakdown = (
+        ", ".join(
+            f"{lvl}: {cnt}"
+            for lvl, cnt in sorted(
+                seniority_counts.items(),
+                key=lambda x: _SENIORITY_ORDER.index(x[0]) if x[0] in _SENIORITY_ORDER else 99,
+            )
         )
-    ) if seniority_counts else "—"
+        if seniority_counts
+        else "—"
+    )
 
     sources_used: list[str] = data.get("sources_used", [])
     if "tavily" in sources_used:
@@ -1606,11 +1780,14 @@ def _write_search_summary_report(data: dict, output_dir: Path,
     elif any(s in sources_used for s in ("serper", "serper_jobs")):
         api_status = "✅ **Serper / Google Jobs** — live search (direct job posting URLs)"
     else:
-        api_status = ("⚠️ **None** — only pre-built deep-link search URLs returned. "
-                      "Set `TAVILY_API_KEY` or `SERPER_API_KEY` in `.env` for live results.")
+        api_status = (
+            "⚠️ **None** — only pre-built deep-link search URLs returned. "
+            "Set `TAVILY_API_KEY` or `SERPER_API_KEY` in `.env` for live results."
+        )
 
     unavailable_count = sum(
-        1 for o in direct_listings
+        1
+        for o in direct_listings
         if o.get("available") is False or o.get("accepting_applications") is False
     )
     top_matches = sorted(
@@ -1718,7 +1895,7 @@ def _write_search_summary_report(data: dict, output_dir: Path,
             title = opp.get("title", "Unknown")
             company = opp.get("company", "?")
             url = opp.get("url", "")
-            closed = (opp.get("available") is False or opp.get("accepting_applications") is False)
+            closed = opp.get("available") is False or opp.get("accepting_applications") is False
             suffix = " ~~(closed)~~" if closed else ""
             lines.append(f"- **{score}/100** — [{title} @ {company}]({url}){suffix}")
         lines.append("")
@@ -1759,8 +1936,10 @@ def _write_search_summary_report(data: dict, output_dir: Path,
         ]
     else:
         sorted_direct = sorted(direct_listings, key=lambda o: o.get("match_score", 0), reverse=True)
-        lines.append(f"*{len(sorted_direct)} listing(s), sorted by match score. "
-                     "Unavailable or closed listings are marked ~~like this~~.*")
+        lines.append(
+            f"*{len(sorted_direct)} listing(s), sorted by match score. "
+            "Unavailable or closed listings are marked ~~like this~~.*"
+        )
         lines.append("")
         for i, opp in enumerate(sorted_direct, 1):
             score = opp.get("match_score", 0)
@@ -1826,8 +2005,10 @@ def _write_search_summary_report(data: dict, output_dir: Path,
     if not search_links:
         lines += ["> No job board search links were generated.", ""]
     else:
-        lines.append(f"*{len(search_links)} pre-built search URL(s) — click to open the job board "
-                     "filtered for your profile.*")
+        lines.append(
+            f"*{len(search_links)} pre-built search URL(s) — click to open the job board "
+            "filtered for your profile.*"
+        )
         lines.append("")
         for i, opp in enumerate(search_links, 1):
             url = opp.get("url", "")
@@ -1852,6 +2033,7 @@ def _write_search_summary_report(data: dict, output_dir: Path,
     md_text = "\n".join(lines)
     try:
         from src.pdf_renderer import write_pdf_from_markdown
+
         write_pdf_from_markdown(md_text, report_path)
     except Exception as pdf_e:
         _warn(f"Could not render job_search_report.pdf, falling back to .md: {pdf_e}")
@@ -1881,13 +2063,12 @@ def cmd_search(args: argparse.Namespace) -> int:
 
     modality = "remote" if args.remote else (args.modality or "any")
     keywords = [k.strip() for k in args.keywords.split(",")] if args.keywords else []
-    include_sources = ([s.strip() for s in args.sources.split(",")]
-                       if args.sources else None)
-    role_override = ([r.strip() for r in args.role.split(",")]
-                     if args.role else None)
+    include_sources = [s.strip() for s in args.sources.split(",")] if args.sources else None
+    role_override = [r.strip() for r in args.role.split(",")] if args.role else None
     # Quality filters
-    exclude_keywords = ([e.strip() for e in args.exclude.split(",")]
-                        if getattr(args, "exclude", None) else [])
+    exclude_keywords = (
+        [e.strip() for e in args.exclude.split(",")] if getattr(args, "exclude", None) else []
+    )
     max_age_days = getattr(args, "max_age_days", 0) or 0
     exact_location = getattr(args, "exact_location", False)
     # Populated below from the role taxonomy once role keywords are known.
@@ -1947,12 +2128,15 @@ def cmd_search(args: argparse.Namespace) -> int:
     # Expand role keywords with recruiter-facing synonyms from the taxonomy.
     try:
         from src.role_taxonomy import expand_keywords
+
         seed_kw = (role_override or cv_titles or [])[:5]
         synonyms_map = expand_keywords(seed_kw)
         if synonyms_map:
             expanded_count = sum(len(v) for v in synonyms_map.values())
-            _info(f"Expanded {len(synonyms_map)} role keyword(s) via taxonomy "
-                  f"(+{expanded_count} synonyms).")
+            _info(
+                f"Expanded {len(synonyms_map)} role keyword(s) via taxonomy "
+                f"(+{expanded_count} synonyms)."
+            )
     except Exception:
         synonyms_map = {}
 
@@ -2015,15 +2199,18 @@ def cmd_search(args: argparse.Namespace) -> int:
         except json.JSONDecodeError:
             # Output may be truncated — salvage complete opportunity objects via regex.
             import re as _re
-            opp_blobs = _re.findall(r'\{\s*"id"\s*:\s*\d+.*?\}(?=\s*,\s*\{|\s*\])', raw_stripped, _re.DOTALL)
+
+            opp_blobs = _re.findall(
+                r'\{\s*"id"\s*:\s*\d+.*?\}(?=\s*,\s*\{|\s*\])', raw_stripped, _re.DOTALL
+            )
             salvaged: list[dict] = []
             for blob in opp_blobs:
-                try:
+                with contextlib.suppress(json.JSONDecodeError):
                     salvaged.append(json.loads(blob))
-                except json.JSONDecodeError:
-                    pass
             if salvaged:
-                _warn(f"Crew output was truncated; salvaged {len(salvaged)} complete opportunity record(s).")
+                _warn(
+                    f"Crew output was truncated; salvaged {len(salvaged)} complete opportunity record(s)."
+                )
                 data["opportunities"] = salvaged
             # Try to recover top-level scalar fields from the partial JSON.
             for field, pattern in [
@@ -2049,11 +2236,14 @@ def cmd_search(args: argparse.Namespace) -> int:
         agent_keywords = data.get("role_keywords") or []
         # Priority: explicit --role override → agent's keywords → CV-derived
         # titles → user keywords → last-resort generic placeholder.
-        fallback_keywords = (role_override or agent_keywords or cv_titles
-                             or keywords or ["professional"])
+        fallback_keywords = (
+            role_override or agent_keywords or cv_titles or keywords or ["professional"]
+        )
 
-        _info(f"Agent returned no opportunities; running fallback search per "
-              f"role keyword: {fallback_keywords[:5]}")
+        _info(
+            f"Agent returned no opportunities; running fallback search per "
+            f"role keyword: {fallback_keywords[:5]}"
+        )
 
         # Run ONE search per keyword and merge — joining keywords into a single
         # query produces overly-narrow searches that match nothing.
@@ -2063,21 +2253,23 @@ def cmd_search(args: argparse.Namespace) -> int:
         seen_urls: set[str] = set()
 
         for kw in fallback_keywords[:5]:
-            tool_input = json.dumps({
-                "role_keywords": [kw],
-                "location": args.location,
-                "seniority": args.seniority or None,
-                "seniority_levels": levels_str if levels_str else None,
-                "modality": modality if modality != "any" else None,
-                "max_results": args.max_results,
-                "keywords": keywords,
-                "contract_type": args.contract_type or None,
-                "include_sources": include_sources,
-                "max_age_days": max_age_days,
-                "exclude_keywords": exclude_keywords,
-                "exact_location": exact_location,
-                "synonyms": synonyms_map,
-            })
+            tool_input = json.dumps(
+                {
+                    "role_keywords": [kw],
+                    "location": args.location,
+                    "seniority": args.seniority or None,
+                    "seniority_levels": levels_str if levels_str else None,
+                    "modality": modality if modality != "any" else None,
+                    "max_results": args.max_results,
+                    "keywords": keywords,
+                    "contract_type": args.contract_type or None,
+                    "include_sources": include_sources,
+                    "max_age_days": max_age_days,
+                    "exclude_keywords": exclude_keywords,
+                    "exact_location": exact_location,
+                    "synonyms": synonyms_map,
+                }
+            )
             try:
                 tool_data = json.loads(_search_jobs_tool.func(tool_input))
             except Exception as e:
@@ -2120,10 +2312,17 @@ def cmd_search(args: argparse.Namespace) -> int:
     # These get processed by the same Tavily-extract enrichment pipeline below.
     cr_companies = _load_cr_companies_from_env()
     if cr_companies:
-        _info(f"Searching careers pages of {len(cr_companies)} CR transnational(s) "
-              "via Serper Google Jobs + Tavily …")
-        co_keywords = (data.get("role_keywords") or cv_titles
-                       or role_override or fallback_keywords or ["professional"])
+        _info(
+            f"Searching careers pages of {len(cr_companies)} CR transnational(s) "
+            "via Serper Google Jobs + Tavily …"
+        )
+        co_keywords = (
+            data.get("role_keywords")
+            or cv_titles
+            or role_override
+            or fallback_keywords
+            or ["professional"]
+        )
         company_opps = _search_company_careers(
             cr_companies,
             role_keywords=co_keywords,
@@ -2142,8 +2341,10 @@ def cmd_search(args: argparse.Namespace) -> int:
             srcs = data.setdefault("sources_used", [])
             if "company_careers" not in srcs:
                 srcs.append("company_careers")
-            _ok(f"Added {new_count} new company-careers opportunit{'y' if new_count == 1 else 'ies'} "
-                f"from {len(cr_companies)} CR transnational(s).")
+            _ok(
+                f"Added {new_count} new company-careers opportunit{'y' if new_count == 1 else 'ies'} "
+                f"from {len(cr_companies)} CR transnational(s)."
+            )
         else:
             _info("No matching openings found on company careers pages.")
 
@@ -2154,11 +2355,14 @@ def cmd_search(args: argparse.Namespace) -> int:
     # (→ direct_listing) or is tagged as search_url and then followed below.
     # Use only the top role keyword across a few ATS filters to keep Serper
     # quota usage and downstream Tavily extract budget reasonable.
-    serper_role_kws = (data.get("role_keywords") or cv_titles
-                       or role_override or fallback_keywords or [])[:1]
+    serper_role_kws = (
+        data.get("role_keywords") or cv_titles or role_override or fallback_keywords or []
+    )[:1]
     if serper_role_kws:
-        _info(f"Querying Serper organic for direct posting URLs "
-              f"({len(serper_role_kws)} keyword(s) × 4 ATS filters) …")
+        _info(
+            f"Querying Serper organic for direct posting URLs "
+            f"({len(serper_role_kws)} keyword(s) × 4 ATS filters) …"
+        )
         ats_filters = [
             "site:linkedin.com/jobs/view",
             "site:jobgether.com/offer",
@@ -2206,7 +2410,8 @@ def cmd_search(args: argparse.Namespace) -> int:
     opportunities = data.get("opportunities", [])
     if args.min_match:
         opportunities = [
-            o for o in opportunities
+            o
+            for o in opportunities
             if not o.get("match_score") or o.get("match_score", 0) >= args.min_match
         ]
         data["opportunities"] = opportunities
@@ -2214,6 +2419,7 @@ def cmd_search(args: argparse.Namespace) -> int:
 
     # Stamp search metadata and search parameters so the report always has context
     import datetime
+
     data.setdefault("search_timestamp", datetime.datetime.utcnow().isoformat() + "Z")
     data.setdefault("cv_source", str(args.cv))
     data.setdefault("location_filter", args.location)
@@ -2243,8 +2449,10 @@ def cmd_search(args: argparse.Namespace) -> int:
         before_enrich = len(opportunities)
         # Combine skills + certifications so terms like "SAFe", "Scrum Master", "PMP"
         # also count toward skill matching.
-        combined_skills = list(profile_data.get("skills") or [])[:25] \
+        combined_skills = (
+            list(profile_data.get("skills") or [])[:25]
             + list(profile_data.get("certifications") or [])[:10]
+        )
         # Allow remote-friendly results unless the user explicitly chose on-site.
         allow_remote = (modality or "").lower() in ("any", "remote", "hybrid", "")
         opportunities = _enrich_listings_via_tavily(
@@ -2261,8 +2469,10 @@ def cmd_search(args: argparse.Namespace) -> int:
         # Legacy fallback when no Tavily key — HEAD/GET availability check only.
         direct_count = sum(1 for o in opportunities if o.get("link_type") == "direct_listing")
         if direct_count:
-            _info(f"Checking availability of {direct_count} direct listing URL(s) "
-                  "(set TAVILY_API_KEY for richer enrichment) …")
+            _info(
+                f"Checking availability of {direct_count} direct listing URL(s) "
+                "(set TAVILY_API_KEY for richer enrichment) …"
+            )
             for opp in opportunities:
                 if opp.get("link_type") == "direct_listing" and opp.get("url"):
                     result = _check_url_available(opp["url"])
@@ -2270,10 +2480,12 @@ def cmd_search(args: argparse.Namespace) -> int:
                     opp["accepting_applications"] = result.get("accepting")
             before_avail_filter = len(opportunities)
             opportunities = [
-                o for o in opportunities
+                o
+                for o in opportunities
                 if o.get("link_type") != "direct_listing"
-                or (o.get("available") is not False
-                    and o.get("accepting_applications") is not False)
+                or (
+                    o.get("available") is not False and o.get("accepting_applications") is not False
+                )
             ]
             avail_dropped = before_avail_filter - len(opportunities)
             if avail_dropped:
@@ -2295,13 +2507,17 @@ def cmd_search(args: argparse.Namespace) -> int:
         if run_pipeline is not None:
             profile_skills = list((profile_data or {}).get("skills") or [])
             profile_summary = (
-                ((profile_data or {}).get("headline") or "") + ". "
-                + ((profile_data or {}).get("summary") or "") + " Skills: "
+                ((profile_data or {}).get("headline") or "")
+                + ". "
+                + ((profile_data or {}).get("summary") or "")
+                + " Skills: "
                 + ", ".join(profile_skills[:30])
             )
-            _info(f"Running search rerank pipeline on {len(opportunities)} candidate(s) "
-                  f"(provider={getattr(args, 'embeddings_provider', 'local')}, "
-                  f"llm_judge={'on' if getattr(args, 'llm_judge', True) else 'off'}) …")
+            _info(
+                f"Running search rerank pipeline on {len(opportunities)} candidate(s) "
+                f"(provider={getattr(args, 'embeddings_provider', 'local')}, "
+                f"llm_judge={'on' if getattr(args, 'llm_judge', True) else 'off'}) …"
+            )
             try:
                 piped = run_pipeline(
                     opportunities,
@@ -2318,10 +2534,7 @@ def cmd_search(args: argparse.Namespace) -> int:
                     embeddings_provider=getattr(args, "embeddings_provider", "local"),
                 )
                 stages = piped.get("stages", {})
-                _ok(
-                    "Rerank pipeline: "
-                    + " → ".join(f"{k}={v}" for k, v in stages.items())
-                )
+                _ok("Rerank pipeline: " + " → ".join(f"{k}={v}" for k, v in stages.items()))
                 opportunities = piped["opportunities"]
                 data["opportunities"] = opportunities
                 data["total_found"] = len(opportunities)
@@ -2359,7 +2572,8 @@ def cmd_search(args: argparse.Namespace) -> int:
         or "candidate"
     )
     summary_report_path = _write_search_summary_report(
-        data, run_dir,
+        data,
+        run_dir,
         candidate_name=candidate_name,
         profile_data=profile_data or None,
     )
@@ -2376,15 +2590,18 @@ def cmd_search(args: argparse.Namespace) -> int:
 
     if opportunities:
         if _HAS_RICH:
-            table = Table(title="Job opportunities (absolute URLs)",
-                          show_header=True, header_style="bold cyan")
+            table = Table(
+                title="Job opportunities (absolute URLs)",
+                show_header=True,
+                header_style="bold cyan",
+            )
             table.add_column("#", style="dim", width=3)
             table.add_column("Source", style="green")
             table.add_column("Title", style="bold", max_width=38)
             table.add_column("Match", justify="right")
             table.add_column("Contract")
             table.add_column("URL")
-            for i, opp in enumerate(opportunities[:args.max_results], 1):
+            for i, opp in enumerate(opportunities[: args.max_results], 1):
                 score = opp.get("match_score", 0)
                 score_str = f"{score}/100" if score else "-"
                 table.add_row(
@@ -2427,4 +2644,3 @@ def cmd_search(args: argparse.Namespace) -> int:
 
 
 # ─── Subcommand: eval ─────────────────────────────────────────────────────
-

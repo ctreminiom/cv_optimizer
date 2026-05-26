@@ -2,17 +2,17 @@
 recruiter-facing synonyms. Powers query expansion for `search_jobs` and the
 role-match check in the LLM judge.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Dict, List
 
 _TAXONOMY_PATH = Path(__file__).resolve().parent.parent / "config" / "role_taxonomy.yaml"
 
-_cache: Dict[str, List[str]] | None = None
+_cache: dict[str, list[str]] | None = None
 
 
-def _load() -> Dict[str, List[str]]:
+def _load() -> dict[str, list[str]]:
     global _cache
     if _cache is not None:
         return _cache
@@ -26,7 +26,7 @@ def _load() -> Dict[str, List[str]]:
         return _cache
     raw = yaml.safe_load(_TAXONOMY_PATH.read_text(encoding="utf-8")) or {}
     # Normalise to lowercase
-    out: Dict[str, List[str]] = {}
+    out: dict[str, list[str]] = {}
     for canonical, alts in raw.items():
         canon_key = canonical.replace("_", " ").lower()
         out[canon_key] = [str(a).lower() for a in (alts or [])]
@@ -36,12 +36,12 @@ def _load() -> Dict[str, List[str]]:
     return _cache
 
 
-def expand_keywords(keywords: List[str]) -> Dict[str, List[str]]:
+def expand_keywords(keywords: list[str]) -> dict[str, list[str]]:
     """Return a {input_keyword: [synonyms]} map for any keyword that has
     a taxonomy entry. Caller decides how aggressively to expand.
     """
     taxonomy = _load()
-    out: Dict[str, List[str]] = {}
+    out: dict[str, list[str]] = {}
     for kw in keywords:
         k = kw.lower().strip()
         if k in taxonomy:
@@ -55,10 +55,10 @@ def expand_keywords(keywords: List[str]) -> Dict[str, List[str]]:
     return out
 
 
-def all_aliases() -> Dict[str, str]:
+def all_aliases() -> dict[str, str]:
     """Reverse map alias → canonical for matching against returned postings."""
     taxonomy = _load()
-    out: Dict[str, str] = {}
+    out: dict[str, str] = {}
     for canonical, alts in taxonomy.items():
         out[canonical] = canonical
         for a in alts:

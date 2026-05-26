@@ -4,6 +4,7 @@ All functions that make direct Anthropic API calls (not via CrewAI agents)
 depend on LLMClientProtocol and receive a client via injection.  Use
 get_default_client() as the production default; pass a mock in tests.
 """
+
 from __future__ import annotations
 
 from typing import Any, Protocol, runtime_checkable
@@ -31,6 +32,7 @@ class _AnthropicClient:
 
     def __init__(self, api_key: str) -> None:
         import anthropic
+
         self._client = anthropic.Anthropic(api_key=api_key)
 
     def complete(
@@ -55,6 +57,7 @@ def get_default_client() -> LLMClientProtocol:
     Raises ValidationError if ANTHROPIC_API_KEY is missing from the environment.
     """
     from src.settings import get_settings
+
     settings = get_settings()
     api_key = settings.reveal(settings.anthropic_api_key) or ""
     return _AnthropicClient(api_key=api_key)

@@ -3,75 +3,75 @@
 Contains all helpers for building and writing the final recommendation
 report. Extracted from main.py (SRP Phase 3d). No logic changes.
 """
+
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import re
-import shutil
 import time
 from pathlib import Path
 from typing import Any
 
 from src.cli.utils import slugify as _slugify
 from src.company import resolve_company_domain as _resolve_company_domain
-from src.constants import (
-    TASK_PARSE_JOB, TASK_PARSE_CV, TASK_EXTRACT_VOICE,
-    TASK_HR_EVAL, TASK_HIRING_EVAL, TASK_TECHNICAL_EVAL,
-    TASK_ATS_EVAL, TASK_GAP_ANALYSIS, TASK_SECOND_OPINION,
-    TASK_COMPETITOR, TASK_CONSOLIDATE,
-    TASK_REWRITE_CV, TASK_HUMANIZE_CV, TASK_HUMANIZE_RETRY,
-    TASK_MIRRORING_CHECK, TASK_VERIFICATION,
-    TASK_INTERVIEW_PREP, TASK_COVER_LETTER,
-)
 from src.pipeline.coercion import (
     as_dict as _as_dict,
+)
+from src.pipeline.coercion import (
     as_list as _as_list,
+)
+from src.pipeline.coercion import (
     as_list_of_dicts as _as_list_of_dicts,
 )
 from src.pipeline.scoring import (
-    CHECKLIST_STOPWORDS as _CHECKLIST_STOPWORDS,
-    NUMBER_RE as _NUMBER_RE,
-    STRONG_ACTION_VERBS as _STRONG_ACTION_VERBS,
-    VERDICT_TIERS as _VERDICT_TIERS,
-    WEAK_WORDS as _WEAK_WORDS,
     audit_quantification as _audit_quantification,
+)
+from src.pipeline.scoring import (
     audit_weak_words as _audit_weak_words,
+)
+from src.pipeline.scoring import (
     build_pre_submission_checklist as _build_pre_submission_checklist,
-    checklist_tokens as _checklist_tokens,
+)
+from src.pipeline.scoring import (
     compute_skill_alignment_matrix as _compute_skill_alignment_matrix,
-    decision_helper as _decision_helper,
+)
+from src.pipeline.scoring import (
     effort_impact_quadrant as _effort_impact_quadrant,
-    estimate_score_uplift as _estimate_score_uplift,
+)
+from src.pipeline.scoring import (
     extract_strong_verbs_from_jd as _extract_strong_verbs_from_jd,
-    match_by_category as _match_by_category,
-    qualitative_match_by_category as _qualitative_match_by_category,
+)
+from src.pipeline.scoring import (
     status_badge as _status_badge,
 )
 from src.presentation import (
     HAS_RICH as _HAS_RICH,
-    Panel,
-    Table,
+)
+from src.presentation import (
     console as _console,
+)
+from src.presentation import (
     info as _info,
-    ok as _ok,
+)
+from src.presentation import (
     warn as _warn,
 )
 from src.report.enricher import (
     classify_match_with_opus as _classify_match_with_opus,
+)
+from src.report.enricher import (
     copy_job_source_as_pdf as _copy_job_source_as_pdf,
+)
+from src.report.enricher import (
     decision_helper_with_opus as _decision_helper_with_opus,
+)
+from src.report.enricher import (
     posting_freshness as _posting_freshness,
-    write_prescreen_stub as _write_prescreen_stub,
 )
 
-__all__ = [
-    "ensure_markdown_report",
-    "write_failed_stub",
-    "write_sidecar_artifacts",
-    "build_links_section",
-    "generate_strategic_insights",
-]
+__all__: list[str] = []
 
 
 def _build_links_section(report: dict, job: dict) -> list[dict]:
@@ -88,11 +88,9 @@ def _build_links_section(report: dict, job: dict) -> list[dict]:
 
     # ── Canonical posting links first ─────────────────────────────────────
     if source_url:
-        links.append({"label": "Original job posting (source URL)",
-                       "url": source_url})
+        links.append({"label": "Original job posting (source URL)", "url": source_url})
     if source_file:
-        links.append({"label": "Original job posting (local file)",
-                       "url": f"file://{source_file}"})
+        links.append({"label": "Original job posting (local file)", "url": f"file://{source_file}"})
 
     # ── Recruiter / hiring-manager handles parsed from JD body ────────────
     # Pull email + LinkedIn URL from the JD body if present.
@@ -108,52 +106,69 @@ def _build_links_section(report: dict, job: dict) -> list[dict]:
         for email_m in re.finditer(r"[\w.+-]+@[\w-]+\.[\w.-]+", jd_body):
             email = email_m.group(0)
             # Skip generic noreply / careers boilerplate.
-            if any(x in email.lower() for x in ("noreply", "no-reply",
-                                                  "donotreply")):
+            if any(x in email.lower() for x in ("noreply", "no-reply", "donotreply")):
                 continue
             subj = f"Re: {title}" if title else "Application"
-            links.append({
-                "label": f"Email recruiter — {email}",
-                "url": f"mailto:{email}?subject={subj}",
-            })
+            links.append(
+                {
+                    "label": f"Email recruiter — {email}",
+                    "url": f"mailto:{email}?subject={subj}",
+                }
+            )
             break
         for li_m in re.finditer(
-            r"https?://(?:[a-z]{2,3}\.)?linkedin\.com/in/[\w\-_/]+",
-            jd_body, re.I):
-            links.append({"label": "Recruiter LinkedIn (from JD)",
-                          "url": li_m.group(0)})
+            r"https?://(?:[a-z]{2,3}\.)?linkedin\.com/in/[\w\-_/]+", jd_body, re.I
+        ):
+            links.append({"label": "Recruiter LinkedIn (from JD)", "url": li_m.group(0)})
             break
 
     if company:
         from urllib.parse import quote_plus
+
         c = quote_plus(company)
         t = quote_plus(title)
-        l = quote_plus(location)
+        loc = quote_plus(location)
         # Try a company careers page guess from the resolver used by `search`.
         try:
             domain = _resolve_company_domain(company)
         except Exception:
             domain = None
         if domain:
-            links.append({"label": f"{company} careers page (guess)",
-                           "url": f"https://{domain}/careers"})
-            links.append({"label": f"{company} website",
-                           "url": f"https://{domain}"})
+            links.append(
+                {"label": f"{company} careers page (guess)", "url": f"https://{domain}/careers"}
+            )
+            links.append({"label": f"{company} website", "url": f"https://{domain}"})
 
         # Company-specific LinkedIn jobs page (the brand, not the catch-all).
-        links.append({"label": f"LinkedIn jobs at {company}",
-                       "url": f"https://www.linkedin.com/jobs/search/?keywords={c}&location={l}"})
+        links.append(
+            {
+                "label": f"LinkedIn jobs at {company}",
+                "url": f"https://www.linkedin.com/jobs/search/?keywords={c}&location={loc}",
+            }
+        )
         # People search anchored on title + company (more useful than just company).
         if title:
-            links.append({"label": f"Find {title} contacts at {company} (LinkedIn)",
-                           "url": f"https://www.linkedin.com/search/results/people/"
-                                  f"?keywords={c}%20{t}&origin=GLOBAL_SEARCH_HEADER"})
+            links.append(
+                {
+                    "label": f"Find {title} contacts at {company} (LinkedIn)",
+                    "url": f"https://www.linkedin.com/search/results/people/"
+                    f"?keywords={c}%20{t}&origin=GLOBAL_SEARCH_HEADER",
+                }
+            )
         else:
-            links.append({"label": f"Find people at {company} (LinkedIn)",
-                           "url": f"https://www.linkedin.com/search/results/people/"
-                                  f"?keywords={c}&origin=GLOBAL_SEARCH_HEADER"})
-        links.append({"label": f"Glassdoor reviews — {company}",
-                       "url": f"https://www.glassdoor.com/Search/results.htm?keyword={c}"})
+            links.append(
+                {
+                    "label": f"Find people at {company} (LinkedIn)",
+                    "url": f"https://www.linkedin.com/search/results/people/"
+                    f"?keywords={c}&origin=GLOBAL_SEARCH_HEADER",
+                }
+            )
+        links.append(
+            {
+                "label": f"Glassdoor reviews — {company}",
+                "url": f"https://www.glassdoor.com/Search/results.htm?keyword={c}",
+            }
+        )
     return links
 
 
@@ -163,30 +178,31 @@ def _build_links_section(report: dict, job: dict) -> list[dict]:
 # expect back. Drives both the "about to call" preview panel and the
 # post-call "what we got" summary table.
 _STRATEGIC_DELIVERABLES = [
-    ("✍️",  "Bullet rewrites",            "bullet_rewrites"),
-    ("🧭",  "Career narrative",           "career_narrative"),
-    ("🤝",  "Cultural fit signals",       "cultural_fit_signals"),
-    ("📜",  "Cover letter outline",       "cover_letter_outline"),
-    ("🎯",  "Application strategy",       "application_strategy"),
-    ("❓",  "Questions to ask",           "questions_to_ask_interviewer"),
-    ("🛠️",  "Skills to develop",          "skills_to_develop"),
-    ("🎒",  "Interview prep checklist",   "interview_preparation"),
-    ("🏢",  "Company snapshot",           "company_snapshot"),
+    ("✍️", "Bullet rewrites", "bullet_rewrites"),
+    ("🧭", "Career narrative", "career_narrative"),
+    ("🤝", "Cultural fit signals", "cultural_fit_signals"),
+    ("📜", "Cover letter outline", "cover_letter_outline"),
+    ("🎯", "Application strategy", "application_strategy"),
+    ("❓", "Questions to ask", "questions_to_ask_interviewer"),
+    ("🛠️", "Skills to develop", "skills_to_develop"),
+    ("🎒", "Interview prep checklist", "interview_preparation"),
+    ("🏢", "Company snapshot", "company_snapshot"),
 ]
 
 _PROPOSAL_DELIVERABLES = [
-    ("🪪",  "Headline",                   "headline"),
-    ("📝",  "Professional summary",       "summary"),
-    ("🛠️",  "Skills section",             "skills"),
-    ("💼",  "Experience bullets",         "experience"),
-    ("🎓",  "Education",                  "education"),
-    ("🏷️",  "ATS keywords woven in",      "keywords_injected"),
-    ("📋",  "Notes for candidate",        "notes_for_candidate"),
+    ("🪪", "Headline", "headline"),
+    ("📝", "Professional summary", "summary"),
+    ("🛠️", "Skills section", "skills"),
+    ("💼", "Experience bullets", "experience"),
+    ("🎓", "Education", "education"),
+    ("🏷️", "ATS keywords woven in", "keywords_injected"),
+    ("📋", "Notes for candidate", "notes_for_candidate"),
 ]
 
 
-def _stage_panel(title: str, subtitle: str, items: list[tuple], model: str,
-                 border: str = "cyan") -> None:
+def _stage_panel(
+    title: str, subtitle: str, items: list[tuple], model: str, border: str = "cyan"
+) -> None:
     """Render a Rich panel announcing a long-running LLM stage with a
     preview of every artifact the call is about to produce. No-op when
     Rich is unavailable — falls back to a single plain line."""
@@ -195,10 +211,10 @@ def _stage_panel(title: str, subtitle: str, items: list[tuple], model: str,
         for emoji, label, _key in items:
             print(f"   {emoji} {label}")
         return
+    from rich import box as _box
     from rich.panel import Panel as _Panel
     from rich.table import Table as _Table
     from rich.text import Text as _Text
-    from rich import box as _box
 
     grid = _Table.grid(padding=(0, 2))
     grid.add_column(justify="right", width=3)
@@ -211,40 +227,48 @@ def _stage_panel(title: str, subtitle: str, items: list[tuple], model: str,
     header.append("  •  ", style="dim")
     header.append(model, style="bold magenta")
 
-    _console.print(_Panel(
-        grid,
-        title=header,
-        subtitle=f"[dim]{subtitle}[/dim]",
-        border_style=border,
-        box=_box.ROUNDED,
-        padding=(1, 2),
-    ))
+    _console.print(
+        _Panel(
+            grid,
+            title=header,
+            subtitle=f"[dim]{subtitle}[/dim]",
+            border_style=border,
+            box=_box.ROUNDED,
+            padding=(1, 2),
+        )
+    )
 
 
 def _stage_status(message: str, spinner: str = "dots"):
     """Context-manager that shows a Rich spinner during the LLM call.
     Returns a no-op manager when Rich is unavailable."""
     if not _HAS_RICH:
+
         class _Null:
-            def __enter__(self): print(f"   … {message}"); return self
-            def __exit__(self, *a): return False
+            def __enter__(self):
+                print(f"   … {message}")
+                return self
+
+            def __exit__(self, *a):
+                return False
+
         return _Null()
-    return _console.status(f"[bold cyan]{message}[/bold cyan]",
-                           spinner=spinner, spinner_style="cyan")
+    return _console.status(
+        f"[bold cyan]{message}[/bold cyan]", spinner=spinner, spinner_style="cyan"
+    )
 
 
-def _summarize_stage_result(title: str, result: dict, items: list[tuple],
-                             elapsed: float, model: str,
-                             border: str = "green") -> None:
+def _summarize_stage_result(
+    title: str, result: dict, items: list[tuple], elapsed: float, model: str, border: str = "green"
+) -> None:
     """Render a Rich table summarising which deliverables the LLM actually
     returned, with an item count per section."""
     if not _HAS_RICH:
         ok = sum(1 for _, _, k in items if (result or {}).get(k))
-        print(f"   ✓ {title}: {ok}/{len(items)} sections "
-              f"in {elapsed:.1f}s ({model})")
+        print(f"   ✓ {title}: {ok}/{len(items)} sections in {elapsed:.1f}s ({model})")
         return
-    from rich.table import Table as _Table
     from rich import box as _box
+    from rich.table import Table as _Table
 
     table = _Table(
         title=f"[bold]{title}[/bold]  [dim]· {elapsed:.1f}s · {model}[/dim]",
@@ -288,6 +312,7 @@ def _generate_strategic_insights(report: dict, *, client: Any = None) -> dict:
     if client is None:
         try:
             from src.llm.client import get_default_client
+
             client = get_default_client()
         except Exception:
             return {}
@@ -303,11 +328,13 @@ def _generate_strategic_insights(report: dict, *, client: Any = None) -> dict:
     for w in _as_list_of_dicts(cand.get("work_experience"))[:3]:
         for b in _as_list(w.get("bullets"))[:3]:
             if b:
-                bullets_to_rewrite.append({
-                    "title": w.get("title", ""),
-                    "company": w.get("company", ""),
-                    "bullet": b[:280],
-                })
+                bullets_to_rewrite.append(
+                    {
+                        "title": w.get("title", ""),
+                        "company": w.get("company", ""),
+                        "bullet": b[:280],
+                    }
+                )
             if len(bullets_to_rewrite) >= 5:
                 break
         if len(bullets_to_rewrite) >= 5:
@@ -318,25 +345,25 @@ strategic insights for a candidate applying to this role. Return ONLY valid JSON
 matching the schema below — no preamble, no markdown fences.
 
 JOB POSTING:
-- Title: {job.get('title', '')}
-- Company: {job.get('company', '')}
-- Location: {job.get('location', '')}
-- Seniority: {job.get('seniority', '')}
-- Modality: {job.get('modality', '')}
-- Key responsibilities: {_as_list(job.get('responsibilities'))[:6]}
-- Top requirements: {[r.get('text','') if isinstance(r,dict) else r for r in _as_list(job.get('requirements'))[:8]]}
-- Cultural signals: {_as_list(job.get('cultural_signals'))}
+- Title: {job.get("title", "")}
+- Company: {job.get("company", "")}
+- Location: {job.get("location", "")}
+- Seniority: {job.get("seniority", "")}
+- Modality: {job.get("modality", "")}
+- Key responsibilities: {_as_list(job.get("responsibilities"))[:6]}
+- Top requirements: {[r.get("text", "") if isinstance(r, dict) else r for r in _as_list(job.get("requirements"))[:8]]}
+- Cultural signals: {_as_list(job.get("cultural_signals"))}
 
 CANDIDATE:
-- Name: {cand.get('full_name', '')}
-- Headline: {cand.get('headline', '')}
-- Top skills: {_as_list(cand.get('skills'))[:15]}
-- Certifications: {_as_list(cand.get('certifications'))[:5]}
+- Name: {cand.get("full_name", "")}
+- Headline: {cand.get("headline", "")}
+- Top skills: {_as_list(cand.get("skills"))[:15]}
+- Certifications: {_as_list(cand.get("certifications"))[:5]}
 
 EVALUATION RESULT:
-- Match score: {report.get('overall_match_score', 0)}/100
-- Critical gaps: {_as_list(gap.get('critical_gaps'))[:5]}
-- Top prioritized changes: {[c.get('description','') for c in _as_list(cf.get('prioritized_changes'))[:5]]}
+- Match score: {report.get("overall_match_score", 0)}/100
+- Critical gaps: {_as_list(gap.get("critical_gaps"))[:5]}
+- Top prioritized changes: {[c.get("description", "") for c in _as_list(cf.get("prioritized_changes"))[:5]]}
 
 BULLETS TO REWRITE (return one per input):
 {json.dumps(bullets_to_rewrite, indent=2)}
@@ -357,6 +384,7 @@ Return JSON with these keys (all required):
 }}"""
 
     from src.settings import get_settings as _gs
+
     try:
         content = _llm.complete(
             model=_gs().model_haiku,
@@ -426,8 +454,11 @@ def _extract_jd_metadata_from_file(job_path: Path) -> dict[str, str]:
             s = line.strip()
             if not s:
                 continue
-            if re.match(r"^\**\s*(position|link|contract|remote|location|company)\s*\**\s*[:\-]",
-                          s, re.IGNORECASE):
+            if re.match(
+                r"^\**\s*(position|link|contract|remote|location|company)\s*\**\s*[:\-]",
+                s,
+                re.IGNORECASE,
+            ):
                 continue
             if s.startswith("http://") or s.startswith("https://"):
                 continue
@@ -453,12 +484,12 @@ def _extract_jd_metadata_from_file(job_path: Path) -> dict[str, str]:
 # Field-name → regex mapping for the top-of-file JD metadata block.
 # Order matters: first match per key wins. Adding a new field = adding one entry here.
 _JD_METADATA_PATTERNS: list[tuple[str, str]] = [
-    ("position",      r"^\**\s*position\s*\**\s*[:\-]\s*(.+?)\s*$"),
-    ("link",          r"^\**\s*link\s*\**\s*[:\-]\s*(\S+).*$"),
+    ("position", r"^\**\s*position\s*\**\s*[:\-]\s*(.+?)\s*$"),
+    ("link", r"^\**\s*link\s*\**\s*[:\-]\s*(\S+).*$"),
     ("contract_type", r"^\**\s*contract(?:\s*type)?\s*\**\s*[:\-]\s*(.+?)\s*$"),
-    ("remote",        r"^\**\s*remote\s*\**\s*[:\-]\s*(.+?)\s*$"),
-    ("location",      r"^\**\s*location\s*\**\s*[:\-]\s*(.+?)\s*$"),
-    ("company",       r"^\**\s*company\s*\**\s*[:\-]\s*(.+?)\s*$"),
+    ("remote", r"^\**\s*remote\s*\**\s*[:\-]\s*(.+?)\s*$"),
+    ("location", r"^\**\s*location\s*\**\s*[:\-]\s*(.+?)\s*$"),
+    ("company", r"^\**\s*company\s*\**\s*[:\-]\s*(.+?)\s*$"),
 ]
 
 _CR_BLURB_CACHE: dict[str, str] = {}
@@ -475,14 +506,17 @@ def _company_costa_rica_blurb(company: str, location_hint: str = "", *, client: 
     if company in _CR_BLURB_CACHE:
         return _CR_BLURB_CACHE[company]
 
-    fallback = (f"Public information on {company}'s Costa Rica operations "
-                 "is not summarized here. Verify the company's local "
-                 "office, headcount, and hiring practices on its careers "
-                 "page and on LinkedIn before applying.")
+    fallback = (
+        f"Public information on {company}'s Costa Rica operations "
+        "is not summarized here. Verify the company's local "
+        "office, headcount, and hiring practices on its careers "
+        "page and on LinkedIn before applying."
+    )
 
     if client is None:
         try:
             from src.llm.client import get_default_client
+
             client = get_default_client()
         except Exception:
             _CR_BLURB_CACHE[company] = fallback
@@ -491,13 +525,13 @@ def _company_costa_rica_blurb(company: str, location_hint: str = "", *, client: 
 
     prompt = (
         f"Write a single short paragraph (3–5 sentences, max 110 words) "
-        f"describing what is publicly known about \"{company}\"'s operations "
+        f'describing what is publicly known about "{company}"\'s operations '
         f"in Costa Rica. Cover office presence (San José / Heredia / "
         f"Cartago / GAM / free-trade-zone parks), known business function "
         f"in CR (BPO/shared services/engineering/sales/local-services/etc.), "
         f"approximate years operating in CR, and the general size of the "
         f"local workforce when publicly reported.\n\n"
-        f"If \"{company}\" is a small or local Costa Rican company you've "
+        f'If "{company}" is a small or local Costa Rican company you\'ve '
         f"only generally heard of, just describe what's publicly known "
         f"(industry, where in CR they operate, rough size) — that's still "
         f"useful. Only if you've genuinely never heard of this company at "
@@ -508,11 +542,12 @@ def _company_costa_rica_blurb(company: str, location_hint: str = "", *, client: 
         f"Output rules:\n"
         f"- Plain prose. No bullets, no markdown headings, no code fences.\n"
         f"- Never invent specific numbers, addresses, or named employees.\n"
-        f"- Hedge with phrases like \"reportedly\" or \"publicly noted\" "
+        f'- Hedge with phrases like "reportedly" or "publicly noted" '
         f"  when you're not certain of a specific fact.\n"
         f"- Maximum 110 words."
     )
     from src.settings import get_settings as _gs
+
     try:
         content = _llm.complete(
             model=_gs().model_haiku,
@@ -533,8 +568,9 @@ def _company_costa_rica_blurb(company: str, location_hint: str = "", *, client: 
         return fallback
 
 
-def _ensure_markdown_report(report: Any, output_dir: Path, job_path: Path,
-                            cv_path: Path) -> Path | None:
+def _ensure_markdown_report(
+    report: Any, output_dir: Path, job_path: Path, cv_path: Path
+) -> Path | None:
     """Build a comprehensive recommendation report. Computes all easy-win
     post-processing in Python, makes ONE bundled Haiku call for the
     LLM-derived strategic insights, then attaches everything to `report`
@@ -611,38 +647,38 @@ def _ensure_markdown_report(report: Any, output_dir: Path, job_path: Path,
         wx = candidate.get("work_experience") or []
         evaluations = report.get("evaluations") or []
         enrichment = {
-            "skill_alignment_matrix":     _compute_skill_alignment_matrix(job, candidate),
-            "quantification_audit":       _audit_quantification(wx),
-            "weak_words_audit":           _audit_weak_words(wx),
-            "strong_verbs":               _extract_strong_verbs_from_jd(job),
-            "pre_submission_checklist":   _build_pre_submission_checklist(report),
-            "effort_impact_quadrant":     _effort_impact_quadrant(report),
-            "qualitative_match":          _classify_match_with_opus(
+            "skill_alignment_matrix": _compute_skill_alignment_matrix(job, candidate),
+            "quantification_audit": _audit_quantification(wx),
+            "weak_words_audit": _audit_weak_words(wx),
+            "strong_verbs": _extract_strong_verbs_from_jd(job),
+            "pre_submission_checklist": _build_pre_submission_checklist(report),
+            "effort_impact_quadrant": _effort_impact_quadrant(report),
+            "qualitative_match": _classify_match_with_opus(
                 evaluations,
                 job,
                 _as_dict(report.get("ats_report")),
                 _as_dict(report.get("gap_analysis")),
             ),
-            "status_badge":               _status_badge(report),
-            "decision_helper":            _decision_helper_with_opus(report),
-            "posting_freshness":          _posting_freshness(job_path),
-            "links":                      _build_links_section(report, job),
+            "status_badge": _status_badge(report),
+            "decision_helper": _decision_helper_with_opus(report),
+            "posting_freshness": _posting_freshness(job_path),
+            "links": _build_links_section(report, job),
         }
 
         # ── Bundled Haiku call for the strategic / medium-tier sections ────
         from src.settings import get_settings as _gs
+
         haiku_model = _gs().model_haiku
         _stage_panel(
             title="🧠 Strategic Insights",
             subtitle="One bundled Haiku call → bullet rewrites, narrative, "
-                     "application strategy and more",
+            "application strategy and more",
             items=_STRATEGIC_DELIVERABLES,
             model=haiku_model,
             border="cyan",
         )
         _t0 = time.time()
-        with _stage_status("Calling Haiku for strategic insights …",
-                           spinner="dots"):
+        with _stage_status("Calling Haiku for strategic insights …", spinner="dots"):
             strategic = _generate_strategic_insights(report)
         _summarize_stage_result(
             title="🧠 Strategic Insights — generated",
@@ -652,7 +688,7 @@ def _ensure_markdown_report(report: Any, output_dir: Path, job_path: Path,
             model=haiku_model,
             border="green" if strategic else "yellow",
         )
-        enrichment["strategic"] = strategic   # may be {} on quota / network failure
+        enrichment["strategic"] = strategic  # may be {} on quota / network failure
 
         # Attach enrichment so downstream helpers (proposal, analysis) can read it.
         report = {**report, "enrichment": enrichment}
@@ -700,6 +736,7 @@ def _ensure_markdown_report(report: Any, output_dir: Path, job_path: Path,
         _write_cover_letter_sidecar(report, target_dir)
 
         from src.tools import write_job_report as _wjr
+
         # Generate the structured Markdown report first — it's the source
         # the PDF renderer will consume. The user's new requirement is to
         # ship a PDF instead of the .md, so we delete the .md after a
@@ -715,32 +752,32 @@ def _ensure_markdown_report(report: Any, output_dir: Path, job_path: Path,
         except Exception:
             ok = md_path.exists()
         if not ok or not md_path.exists():
-            _write_failed_stub(target_dir, job_path,
-                                "write_job_report returned without writing the .md file. "
-                                f"Tool result: {result!r}")
+            _write_failed_stub(
+                target_dir,
+                job_path,
+                f"write_job_report returned without writing the .md file. Tool result: {result!r}",
+            )
             return None
 
         # ── Render the PDF from the markdown source ───────────────────────
         pdf_path = target_dir / "report.pdf"
         try:
             from src.pdf_renderer import write_pdf_from_markdown
+
             md_text = md_path.read_text(encoding="utf-8")
             write_pdf_from_markdown(md_text, pdf_path)
             # Per the user's request: PDF is the user-facing artifact, not
             # the .md. Remove the .md once the PDF is on disk so the
             # output folder stays uncluttered.
-            try:
+            with contextlib.suppress(Exception):
                 md_path.unlink()
-            except Exception:
-                pass
             report.setdefault("output_files", {})
             report["output_files"]["report_pdf"] = str(pdf_path)
             if _HAS_RICH:
-                _console.print(
-                    f"[bold green]📄 Report (PDF):[/bold green] [cyan]{pdf_path}[/cyan]"
-                )
+                _console.print(f"[bold green]📄 Report (PDF):[/bold green] [cyan]{pdf_path}[/cyan]")
         except Exception as e:
             import traceback as _tb
+
             _warn(f"PDF render failed, keeping report.md only: {e}")
             _warn("Traceback:\n" + _tb.format_exc())
             # MD survives — return it as a graceful fallback.
@@ -748,6 +785,7 @@ def _ensure_markdown_report(report: Any, output_dir: Path, job_path: Path,
         return pdf_path
     except Exception as e:
         import traceback as _tb
+
         _warn(f"Could not generate fallback markdown report: {e}")
         tb = _tb.format_exc()
         _warn("Traceback:\n" + tb)
@@ -758,7 +796,6 @@ def _ensure_markdown_report(report: Any, output_dir: Path, job_path: Path,
         return None
 
 
-
 def _write_failed_stub(target_dir: Path, job_path: Path, reason: str) -> Path | None:
     """Write a visible failure marker into a job output folder so silent
     failures (empty dirs from earlier crashes) become obvious.
@@ -767,6 +804,7 @@ def _write_failed_stub(target_dir: Path, job_path: Path, reason: str) -> Path | 
     with a Markdown fallback only if the PDF renderer is unavailable.
     Returns the path of the artifact actually written, or None."""
     import datetime as _dt
+
     target_dir.mkdir(parents=True, exist_ok=True)
     ts = _dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     body = (
@@ -782,6 +820,7 @@ def _write_failed_stub(target_dir: Path, job_path: Path, reason: str) -> Path | 
     # Preferred path: PDF, matching the user's "no .md" requirement.
     try:
         from src.pdf_renderer import write_pdf_from_markdown
+
         pdf_path = target_dir / "_FAILED.pdf"
         write_pdf_from_markdown(body, pdf_path)
         return pdf_path
@@ -847,6 +886,7 @@ def _write_cover_letter_sidecar(report: dict, target_dir: Path) -> Path | None:
         md_text = "\n".join(lines)
         path = target_dir / "cover_letter.pdf"
         from src.pdf_renderer import write_pdf_from_markdown
+
         write_pdf_from_markdown(md_text, path)
         report.setdefault("output_files", {})
         report["output_files"]["cover_letter_pdf"] = str(path)
@@ -867,13 +907,10 @@ def _estimate_application_effort(report: dict) -> dict:
 
     bullets_to_rewrite = len(_as_list(strategic.get("bullet_rewrites")))
     keywords_missing = len(_as_list(ats.get("missing_keywords")))
-    critical_gaps = len([g for g in _as_list(gap.get("critical_gaps"))
-                          if isinstance(g, str)])
+    critical_gaps = len([g for g in _as_list(gap.get("critical_gaps")) if isinstance(g, str)])
 
     # Rough estimate: 6 min/bullet, 1 min/keyword, 12 min/gap addressed.
-    minutes = (bullets_to_rewrite * 6
-                + min(keywords_missing, 12) * 1
-                + critical_gaps * 12)
+    minutes = bullets_to_rewrite * 6 + min(keywords_missing, 12) * 1 + critical_gaps * 12
     minutes = max(minutes, 15)  # never claim less than 15 minutes
 
     if minutes <= 30:
@@ -919,8 +956,11 @@ def _build_tldr_card(report: dict, job_path: Path) -> dict:
                 break
 
     top_lever = None
-    high_changes = [c for c in _as_list_of_dicts(cf.get("prioritized_changes"))
-                    if (c.get("impact") or "").lower() == "high"]
+    high_changes = [
+        c
+        for c in _as_list_of_dicts(cf.get("prioritized_changes"))
+        if (c.get("impact") or "").lower() == "high"
+    ]
     if high_changes:
         top_lever = high_changes[0].get("description") or None
     if not top_lever:
@@ -973,7 +1013,7 @@ def _extract_balanced_object(text: str, start: int) -> str | None:
         elif c == "}":
             depth -= 1
             if depth == 0:
-                return text[open_idx:i + 1]
+                return text[open_idx : i + 1]
         elif c == "," and depth >= 1:
             last_complete_value_end = i
     # Truncated. Trim back to the last complete value, then close braces.
@@ -999,7 +1039,11 @@ def _parse_raw_output(report: dict) -> dict:
     if brace > 0:
         stripped = stripped[brace:]
     # Try the cheap parses first.
-    for end in (len(stripped), stripped.rfind("}") + 1, stripped.rfind("}", 0, len(stripped) - 1) + 1):
+    for end in (
+        len(stripped),
+        stripped.rfind("}") + 1,
+        stripped.rfind("}", 0, len(stripped) - 1) + 1,
+    ):
         if end <= 0:
             continue
         try:
@@ -1117,8 +1161,7 @@ def _build_resume_recommendations_text(report: dict) -> dict[str, list[str]]:
         dos.append("Mirror these JD verbs: " + ", ".join(_as_list(strong)[:8]))
     missing_kw = _as_list(ats.get("missing_keywords"))
     if missing_kw:
-        dos.append("Weave missing ATS keywords naturally: "
-                   + ", ".join(missing_kw[:10]))
+        dos.append("Weave missing ATS keywords naturally: " + ", ".join(missing_kw[:10]))
     for g in _as_list(gap.get("critical_gaps"))[:3]:
         if isinstance(g, str) and g.strip():
             dos.append(f"Address critical gap: {g.strip()}")
@@ -1161,6 +1204,7 @@ def _generate_cv_proposal_with_opus(report: dict, *, client: Any = None) -> dict
     if client is None:
         try:
             from src.llm.client import get_default_client
+
             client = get_default_client()
         except Exception as _e:
             _warn(f"LLM client unavailable — skipping Opus CV proposal: {_e}")
@@ -1203,42 +1247,44 @@ def _generate_cv_proposal_with_opus(report: dict, *, client: Any = None) -> dict
             for c in _as_list(consolidated.get("prioritized_changes"))[:15]
             if isinstance(c, dict)
         ],
-        "critical_gaps":         _as_list(gap.get("critical_gaps"))[:10],
-        "minor_gaps":            _as_list(gap.get("minor_gaps"))[:8],
+        "critical_gaps": _as_list(gap.get("critical_gaps"))[:10],
+        "minor_gaps": _as_list(gap.get("minor_gaps"))[:8],
         "framing_opportunities": _as_list(gap.get("framing_opportunities"))[:8],
-        "missing_ats_keywords":  _as_list(ats.get("missing_keywords"))[:30],
+        "missing_ats_keywords": _as_list(ats.get("missing_keywords"))[:30],
         "overused_ats_keywords": _as_list(ats.get("overused_keywords"))[:10],
-        "format_issues":         _as_list(ats.get("format_issues"))[:10],
+        "format_issues": _as_list(ats.get("format_issues"))[:10],
         "reviewer_red_flags": [
             {"reviewer": ev.get("agent_role", ""), "flag": rf}
-            for ev in evaluations for rf in _as_list(ev.get("red_flags"))[:5]
+            for ev in evaluations
+            for rf in _as_list(ev.get("red_flags"))[:5]
         ][:20],
         "reviewer_recommendations": [
             {"reviewer": ev.get("agent_role", ""), "rec": rec}
-            for ev in evaluations for rec in _as_list(ev.get("recommendations"))[:5]
+            for ev in evaluations
+            for rec in _as_list(ev.get("recommendations"))[:5]
         ][:20],
-        "strong_verbs_from_jd":  _as_list(enrichment.get("strong_verbs"))[:20],
+        "strong_verbs_from_jd": _as_list(enrichment.get("strong_verbs"))[:20],
         "career_narrative_hint": strategic.get("career_narrative", ""),
         "bullet_rewrite_examples": _as_list(strategic.get("bullet_rewrites"))[:5],
     }
 
     cv_snapshot = {
         "full_name": candidate.get("full_name", ""),
-        "headline":  candidate.get("headline", ""),
-        "summary":   candidate.get("summary", ""),
-        "contact":   candidate.get("contact", {}),
-        "skills":         _as_list(candidate.get("skills"))[:40],
-        "languages":      _as_list(candidate.get("languages")),
+        "headline": candidate.get("headline", ""),
+        "summary": candidate.get("summary", ""),
+        "contact": candidate.get("contact", {}),
+        "skills": _as_list(candidate.get("skills"))[:40],
+        "languages": _as_list(candidate.get("languages")),
         "certifications": _as_list(candidate.get("certifications")),
-        "education":      _as_list(candidate.get("education")),
+        "education": _as_list(candidate.get("education")),
         "work_experience": [
             {
-                "company":      w.get("company", ""),
-                "title":        w.get("title", ""),
-                "start_date":   w.get("start_date", ""),
-                "end_date":     w.get("end_date", ""),
-                "location":     w.get("location", ""),
-                "bullets":      _as_list(w.get("bullets"))[:8],
+                "company": w.get("company", ""),
+                "title": w.get("title", ""),
+                "start_date": w.get("start_date", ""),
+                "end_date": w.get("end_date", ""),
+                "location": w.get("location", ""),
+                "bullets": _as_list(w.get("bullets"))[:8],
                 "technologies": _as_list(w.get("technologies"))[:15],
             }
             for w in _as_list_of_dicts(candidate.get("work_experience"))
@@ -1246,16 +1292,16 @@ def _generate_cv_proposal_with_opus(report: dict, *, client: Any = None) -> dict
     }
 
     target_job = {
-        "title":     job.get("title", ""),
-        "company":   job.get("company", ""),
-        "location":  job.get("location", ""),
+        "title": job.get("title", ""),
+        "company": job.get("company", ""),
+        "location": job.get("location", ""),
         "seniority": job.get("seniority", ""),
         "requirements": [
             r.get("text") if isinstance(r, dict) else r
             for r in _as_list(job.get("requirements"))[:15]
         ],
         "responsibilities": _as_list(job.get("responsibilities"))[:10],
-        "ats_keywords":     _as_list(job.get("ats_keywords"))[:30],
+        "ats_keywords": _as_list(job.get("ats_keywords"))[:30],
     }
 
     prompt = f"""You are an elite resume strategist. Produce an ATS-optimized CV
@@ -1341,6 +1387,7 @@ no markdown fences, no commentary.
 }}"""
 
     from src.settings import get_settings as _gs
+
     model_id = _gs().model_opus
     try:
         content = _llm.complete(
@@ -1381,7 +1428,9 @@ def _backfill_proposal_from_source(proposal: dict, source: dict) -> None:
         t = (role.get("title") or "").strip().lower()
         return f"{c}|{t}" if c else t
 
-    out_keys = {(role.get("company") or "").strip().lower() for role in out_exp if isinstance(role, dict)}
+    out_keys = {
+        (role.get("company") or "").strip().lower() for role in out_exp if isinstance(role, dict)
+    }
     for src in src_exp:
         if not isinstance(src, dict):
             continue
@@ -1389,34 +1438,39 @@ def _backfill_proposal_from_source(proposal: dict, source: dict) -> None:
         if company_key and company_key in out_keys:
             continue
         # Missing from Opus output — restore verbatim from source.
-        out_exp.append({
-            "company": src.get("company", ""),
-            "title": src.get("title", ""),
-            "location": src.get("location", ""),
-            "start_date": src.get("start_date", ""),
-            "end_date": src.get("end_date", ""),
-            "bullets": list(src.get("bullets") or []),
-        })
+        out_exp.append(
+            {
+                "company": src.get("company", ""),
+                "title": src.get("title", ""),
+                "location": src.get("location", ""),
+                "start_date": src.get("start_date", ""),
+                "end_date": src.get("end_date", ""),
+                "bullets": list(src.get("bullets") or []),
+            }
+        )
     proposal["experience"] = out_exp
 
     # ── Education: same strategy, matched by institution.
     src_edu = source.get("education") or []
     out_edu = proposal.get("education") if isinstance(proposal.get("education"), list) else []
-    out_inst = {(e.get("institution") or "").strip().lower()
-                for e in out_edu if isinstance(e, dict)}
+    out_inst = {
+        (e.get("institution") or "").strip().lower() for e in out_edu if isinstance(e, dict)
+    }
     for src in src_edu:
         if not isinstance(src, dict):
             continue
         inst = (src.get("institution") or "").strip().lower()
         if inst and inst in out_inst:
             continue
-        out_edu.append({
-            "institution": src.get("institution", ""),
-            "degree": src.get("degree", ""),
-            "field": src.get("field", ""),
-            "start_date": src.get("start_date", ""),
-            "end_date": src.get("end_date", ""),
-        })
+        out_edu.append(
+            {
+                "institution": src.get("institution", ""),
+                "degree": src.get("degree", ""),
+                "field": src.get("field", ""),
+                "start_date": src.get("start_date", ""),
+                "end_date": src.get("end_date", ""),
+            }
+        )
     proposal["education"] = out_edu
 
 
@@ -1432,8 +1486,8 @@ def _write_cv_proposal_docx(proposal: dict, output_path: Path) -> Path | None:
     """
     try:
         from docx import Document
-        from docx.shared import Pt
         from docx.enum.text import WD_ALIGN_PARAGRAPH
+        from docx.shared import Pt
     except ImportError:
         _warn("python-docx not installed — cannot write cv_proposal.docx")
         return None
@@ -1458,8 +1512,9 @@ def _write_cv_proposal_docx(proposal: dict, output_path: Path) -> Path | None:
 
         # Contact line.
         contact = proposal.get("contact") or {}
-        contact_bits = [contact.get(k, "") for k in
-                        ("email", "phone", "location", "linkedin", "website")]
+        contact_bits = [
+            contact.get(k, "") for k in ("email", "phone", "location", "linkedin", "website")
+        ]
         contact_line = " | ".join(b for b in contact_bits if b)
         if contact_line:
             p = doc.add_paragraph(contact_line)
@@ -1529,7 +1584,9 @@ def _write_cv_proposal_docx(proposal: dict, output_path: Path) -> Path | None:
                 inst = (edu.get("institution") or "").strip()
                 start = (edu.get("start_date") or "").strip()
                 end = (edu.get("end_date") or "").strip()
-                left = ", ".join(b for b in [degree + (f" in {field}" if field else ""), inst] if b.strip())
+                left = ", ".join(
+                    b for b in [degree + (f" in {field}" if field else ""), inst] if b.strip()
+                )
                 date = f"{start} – {end}".strip(" –") if (start or end) else ""
                 p = doc.add_paragraph()
                 if left:
@@ -1543,10 +1600,10 @@ def _write_cv_proposal_docx(proposal: dict, output_path: Path) -> Path | None:
             for c in certs:
                 doc.add_paragraph(str(c), style="List Bullet")
 
-        languages = [l for l in (proposal.get("languages") or []) if l]
+        languages = [lang for lang in (proposal.get("languages") or []) if lang]
         if languages:
             _section("Languages")
-            doc.add_paragraph(", ".join(str(l) for l in languages))
+            doc.add_paragraph(", ".join(str(lang) for lang in languages))
 
         output_path.parent.mkdir(parents=True, exist_ok=True)
         doc.save(str(output_path))
@@ -1564,14 +1621,13 @@ def _ensure_cv_proposal(report: dict, target_dir: Path) -> Path | None:
     _stage_panel(
         title="🧾 ATS CV Proposal",
         subtitle="Synthesizing a tailored, ATS-safe .docx from reviewer "
-                 "feedback, gap analysis and JD keywords",
+        "feedback, gap analysis and JD keywords",
         items=_PROPOSAL_DELIVERABLES,
         model=opus_model,
         border="magenta",
     )
     _t0 = time.time()
-    with _stage_status("Calling Opus to synthesize the ATS CV proposal …",
-                       spinner="dots12"):
+    with _stage_status("Calling Opus to synthesize the ATS CV proposal …", spinner="dots12"):
         proposal = _generate_cv_proposal_with_opus(report)
     _summarize_stage_result(
         title="🧾 ATS CV Proposal — synthesized",
@@ -1583,15 +1639,17 @@ def _ensure_cv_proposal(report: dict, target_dir: Path) -> Path | None:
     )
     if not proposal:
         if _HAS_RICH:
-            _console.print("[yellow]⚠ No proposal returned — skipping "
-                           "cv_proposal.docx render.[/yellow]")
+            _console.print(
+                "[yellow]⚠ No proposal returned — skipping cv_proposal.docx render.[/yellow]"
+            )
         return None
     docx_path = target_dir / "cv_proposal.docx"
     with _stage_status("Rendering ATS-safe .docx …", spinner="bouncingBar"):
         written = _write_cv_proposal_docx(proposal, docx_path)
     if written and _HAS_RICH:
-        from rich.panel import Panel as _Panel
         from rich import box as _box
+        from rich.panel import Panel as _Panel
+
         size_kb = written.stat().st_size / 1024 if written.exists() else 0
         body = (
             f"[bold green]✓ ATS CV proposal saved[/bold green]\n"
@@ -1600,8 +1658,7 @@ def _ensure_cv_proposal(report: dict, target_dir: Path) -> Path | None:
             f"[dim]💡 Tip:[/dim]   Open `cv_proposal.docx` next to "
             f"`report.md` to compare against the original CV."
         )
-        _console.print(_Panel(body, border_style="green",
-                              box=_box.ROUNDED, padding=(1, 2)))
+        _console.print(_Panel(body, border_style="green", box=_box.ROUNDED, padding=(1, 2)))
     elif written:
         print(f"   ✓ ATS CV proposal saved: {written}")
     # Stash the structured proposal in the report so the cache preserves it.
@@ -1612,8 +1669,7 @@ def _ensure_cv_proposal(report: dict, target_dir: Path) -> Path | None:
     return written
 
 
-def _build_proposal_analysis(report: dict, proposal: dict,
-                              docx_path: Path | None) -> dict:
+def _build_proposal_analysis(report: dict, proposal: dict, docx_path: Path | None) -> dict:
     """Inspect the generated CV proposal and produce a structured analysis
     + action plan the report can render under a dedicated section.
 
@@ -1638,54 +1694,62 @@ def _build_proposal_analysis(report: dict, proposal: dict,
     skills = [s for s in (proposal.get("skills") or []) if isinstance(s, str)]
     experience = [e for e in (proposal.get("experience") or []) if isinstance(e, dict)]
     education = [e for e in (proposal.get("education") or []) if isinstance(e, dict)]
-    keywords_injected = [k for k in (proposal.get("keywords_injected") or [])
-                          if isinstance(k, str)]
-    notes_from_opus = [n for n in (proposal.get("notes_for_candidate") or [])
-                        if isinstance(n, str)]
+    keywords_injected = [k for k in (proposal.get("keywords_injected") or []) if isinstance(k, str)]
+    notes_from_opus = [n for n in (proposal.get("notes_for_candidate") or []) if isinstance(n, str)]
 
     if headline:
         highlights.append(f"Repositioned headline: _{headline}_")
     if summary:
-        highlights.append(f"Rewrote professional summary ({len(summary.split())} words, "
-                          "front-loaded with ATS keywords).")
+        highlights.append(
+            f"Rewrote professional summary ({len(summary.split())} words, "
+            "front-loaded with ATS keywords)."
+        )
     if skills:
         highlights.append(f"Curated {len(skills)} skills ordered by relevance to the JD.")
     if experience:
         bullet_count = sum(len(e.get("bullets") or []) for e in experience)
-        highlights.append(f"Reframed {len(experience)} role(s) "
-                          f"with {bullet_count} ATS-friendly bullets.")
+        highlights.append(
+            f"Reframed {len(experience)} role(s) with {bullet_count} ATS-friendly bullets."
+        )
     if education:
-        highlights.append(f"Preserved {len(education)} education entry "
-                          f"({'ies' if len(education) > 1 else 'y'}).")
+        highlights.append(
+            f"Preserved {len(education)} education entry ({'ies' if len(education) > 1 else 'y'})."
+        )
     if keywords_injected:
-        highlights.append(f"Wove {len(keywords_injected)} missing ATS keyword(s) "
-                          "naturally into the doc.")
+        highlights.append(
+            f"Wove {len(keywords_injected)} missing ATS keyword(s) naturally into the doc."
+        )
 
     # ── Diff vs. original CV (best-effort, only on shared fields) ────────
     diff: list[dict] = []
     src_headline = (candidate.get("headline") or "").strip()
     if src_headline and headline and src_headline.lower() != headline.lower():
-        diff.append({
-            "field": "Headline",
-            "before": src_headline,
-            "after": headline,
-        })
+        diff.append(
+            {
+                "field": "Headline",
+                "before": src_headline,
+                "after": headline,
+            }
+        )
     src_summary = (candidate.get("summary") or "").strip()
     if src_summary and summary and src_summary != summary:
-        diff.append({
-            "field": "Summary",
-            "before": (src_summary[:200] + "…") if len(src_summary) > 200 else src_summary,
-            "after": (summary[:200] + "…") if len(summary) > 200 else summary,
-        })
-    src_skills = {s.lower() for s in (candidate.get("skills") or [])
-                   if isinstance(s, str)}
+        diff.append(
+            {
+                "field": "Summary",
+                "before": (src_summary[:200] + "…") if len(src_summary) > 200 else src_summary,
+                "after": (summary[:200] + "…") if len(summary) > 200 else summary,
+            }
+        )
+    src_skills = {s.lower() for s in (candidate.get("skills") or []) if isinstance(s, str)}
     added_skills = [s for s in skills if s.lower() not in src_skills]
     if added_skills:
-        diff.append({
-            "field": "Skills added",
-            "before": "—",
-            "after": ", ".join(added_skills[:12]),
-        })
+        diff.append(
+            {
+                "field": "Skills added",
+                "before": "—",
+                "after": ", ".join(added_skills[:12]),
+            }
+        )
 
     # ── Keyword coverage: which missing ATS terms are now covered? ──────
     missing = [k for k in (ats.get("missing_keywords") or []) if isinstance(k, str)]
@@ -1693,8 +1757,7 @@ def _build_proposal_analysis(report: dict, proposal: dict,
         " ".join([summary, headline, " ".join(skills)])
         + " "
         + " ".join(
-            (" ".join(e.get("bullets") or []) + " " + (e.get("title") or ""))
-            for e in experience
+            (" ".join(e.get("bullets") or []) + " " + (e.get("title") or "")) for e in experience
         )
     ).lower()
     covered = [k for k in missing if k.lower() in proposal_corpus]
@@ -1708,6 +1771,7 @@ def _build_proposal_analysis(report: dict, proposal: dict,
     # P1 — items Opus called out explicitly (portfolio, date verification, etc.)
     for n in notes_from_opus[:8]:
         action_plan.append({"priority": "High", "step": n})
+
     # P2 — checklist items whose substance is NOT already addressed in the
     # proposal corpus (rough heuristic: at least 4 chars of the item appear).
     def _in_proposal(text: str) -> bool:
@@ -1718,6 +1782,7 @@ def _build_proposal_analysis(report: dict, proposal: dict,
         snippet = re.sub(r"[^a-z0-9 ]+", " ", t)
         snippet = " ".join(snippet.split())[:60]
         return bool(snippet) and snippet in proposal_corpus
+
     for item in checklist:
         if not _in_proposal(item):
             action_plan.append({"priority": "Medium", "step": item})
@@ -1725,11 +1790,12 @@ def _build_proposal_analysis(report: dict, proposal: dict,
             break
     # P3 — still-missing keywords (Opus couldn't honestly inject them).
     if still_missing:
-        action_plan.append({
-            "priority": "Medium",
-            "step": "Acquire or surface evidence for: "
-                    + ", ".join(still_missing[:8]),
-        })
+        action_plan.append(
+            {
+                "priority": "Medium",
+                "step": "Acquire or surface evidence for: " + ", ".join(still_missing[:8]),
+            }
+        )
     # P4 — every critical gap that remains is worth interview prep regardless.
     for g in crit_gaps[:4]:
         action_plan.append({"priority": "Low", "step": f"Interview-prep talking point: {g}"})
@@ -1754,4 +1820,3 @@ def _build_proposal_analysis(report: dict, proposal: dict,
 
 
 # ─── Subcommand: run ──────────────────────────────────────────────────────
-

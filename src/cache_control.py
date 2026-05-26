@@ -18,6 +18,7 @@ Usage:
 The Anthropic SDK then sees ephemeral cache markers and reuses cached
 prefixes — input tokens billed at 0.1× standard rate after the first call.
 """
+
 from __future__ import annotations
 
 import os
@@ -49,13 +50,15 @@ def build_cached_messages(
     if cache_context:
         ctx_block["cache_control"] = {"type": "ephemeral"}
 
-    messages.append({
-        "role": "user",
-        "content": [
-            ctx_block,
-            {"type": "text", "text": user_message},
-        ],
-    })
+    messages.append(
+        {
+            "role": "user",
+            "content": [
+                ctx_block,
+                {"type": "text", "text": user_message},
+            ],
+        }
+    )
     return messages
 
 
@@ -73,7 +76,7 @@ def call_with_cache(
     try:
         from anthropic import Anthropic
     except ImportError:
-        raise RuntimeError("anthropic SDK not installed: pip install anthropic")
+        raise RuntimeError("anthropic SDK not installed: pip install anthropic") from None
 
     client = Anthropic()
     model = model or os.getenv("MODEL_HAIKU", "claude-haiku-4-5-20251001")
@@ -87,16 +90,20 @@ def call_with_cache(
     resp = client.messages.create(
         model=model,
         max_tokens=max_tokens,
-        system=[{
-            "type": "text",
-            "text": system_prompt,
-            "cache_control": {"type": "ephemeral"},
-        }] if system_prompt else None,
+        system=[
+            {
+                "type": "text",
+                "text": system_prompt,
+                "cache_control": {"type": "ephemeral"},
+            }
+        ]
+        if system_prompt
+        else None,
         messages=messages,
     )
 
     # Concatenate text blocks
-    parts: List[str] = []
+    parts: list[str] = []
     for block in resp.content:
         if hasattr(block, "text"):
             parts.append(block.text)

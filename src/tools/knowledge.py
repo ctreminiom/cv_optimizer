@@ -1,4 +1,5 @@
 """Domain knowledge retrieval tool."""
+
 from __future__ import annotations
 
 import json
@@ -34,4 +35,3 @@ def load_domain_knowledge_base(role_type: str) -> str:
             except Exception:
                 continue
     return json.dumps({"error": "no knowledge base available", "role_type": role_type})
-

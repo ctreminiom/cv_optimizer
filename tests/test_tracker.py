@@ -1,7 +1,7 @@
 """Tests for src/cli/tracker.py (Phase 3a extraction)."""
+
 from __future__ import annotations
 
-import time
 from unittest.mock import MagicMock
 
 from src.cli.tracker import (
@@ -11,11 +11,14 @@ from src.cli.tracker import (
     print_agent_workflow_graph,
 )
 from src.constants import (
-    TASK_PARSE_JOB, TASK_HR_EVAL, TASK_CONSOLIDATE, TASK_INTERVIEW_PREP,
+    TASK_CONSOLIDATE,
+    TASK_HR_EVAL,
+    TASK_INTERVIEW_PREP,
+    TASK_PARSE_JOB,
 )
 
-
 # ── AGENT_WORKFLOW_PHASES ────────────────────────────────────────────────────
+
 
 def test_workflow_phases_structure() -> None:
     assert len(AGENT_WORKFLOW_PHASES) == 4
@@ -33,6 +36,7 @@ def test_workflow_phases_agent_tuples() -> None:
 
 # ── TASK_VIS ─────────────────────────────────────────────────────────────────
 
+
 def test_task_vis_covers_key_tasks() -> None:
     for task in (TASK_PARSE_JOB, TASK_HR_EVAL, TASK_CONSOLIDATE, TASK_INTERVIEW_PREP):
         assert task in TASK_VIS
@@ -43,6 +47,7 @@ def test_task_vis_covers_key_tasks() -> None:
 
 
 # ── AgentInteractionTracker ──────────────────────────────────────────────────
+
 
 def test_tracker_init_defaults() -> None:
     tracker = AgentInteractionTracker()
@@ -131,6 +136,7 @@ def test_render_workflow_with_timings_no_events(capsys) -> None:
 
 
 # ── print_agent_workflow_graph ───────────────────────────────────────────────
+
 
 def test_print_agent_workflow_graph_no_crash(capsys) -> None:
     print_agent_workflow_graph(skip_cover_letter=False, with_competitor=False)

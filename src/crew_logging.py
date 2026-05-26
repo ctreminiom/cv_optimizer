@@ -8,6 +8,7 @@ Logs go through `src.logging_config.get_logger` (structlog when available),
 honouring `LOG_LEVEL`. LLM-call lines are DEBUG (noisy); everything else is
 INFO, failures are ERROR. Install once via `install_crew_logging()`.
 """
+
 from __future__ import annotations
 
 import time
@@ -77,7 +78,8 @@ def install_crew_logging() -> None:
     def _on_task_started(_source: Any, event: TaskStartedEvent) -> None:
         if event.task_id:
             started_at[event.task_id] = time.time()
-        _emit("info", 
+        _emit(
+            "info",
             "task_started",
             task=event.task_name or event.task_id,
             agent=event.agent_role,
@@ -94,7 +96,8 @@ def install_crew_logging() -> None:
             kind, preview = type(out.pydantic).__name__, ""
         else:
             kind, preview = "text", _short(getattr(out, "raw", out) or "")
-        _emit("info",
+        _emit(
+            "info",
             "task_completed",
             task=event.task_name or event.task_id,
             agent=event.agent_role,
@@ -108,7 +111,8 @@ def install_crew_logging() -> None:
         elapsed = None
         if event.task_id in started_at:
             elapsed = round(time.time() - started_at.pop(event.task_id), 1)
-        _emit("error", 
+        _emit(
+            "error",
             "task_failed",
             task=event.task_name or event.task_id,
             agent=event.agent_role,
@@ -118,7 +122,8 @@ def install_crew_logging() -> None:
 
     @crewai_event_bus.on(ToolUsageStartedEvent)
     def _on_tool_started(_source: Any, event: ToolUsageStartedEvent) -> None:
-        _emit("info", 
+        _emit(
+            "info",
             "tool_started",
             tool=event.tool_name,
             task=event.task_name,
@@ -134,7 +139,8 @@ def install_crew_logging() -> None:
                 elapsed = round((finish - start).total_seconds(), 2)
             except Exception:
                 elapsed = None
-        _emit("info", 
+        _emit(
+            "info",
             "tool_finished",
             tool=event.tool_name,
             task=event.task_name,
@@ -144,7 +150,8 @@ def install_crew_logging() -> None:
 
     @crewai_event_bus.on(ToolUsageErrorEvent)
     def _on_tool_error(_source: Any, event: ToolUsageErrorEvent) -> None:
-        _emit("warning", 
+        _emit(
+            "warning",
             "tool_error",
             tool=getattr(event, "tool_name", None),
             task=getattr(event, "task_name", None),
@@ -153,7 +160,8 @@ def install_crew_logging() -> None:
 
     @crewai_event_bus.on(LLMCallStartedEvent)
     def _on_llm_started(_source: Any, event: LLMCallStartedEvent) -> None:
-        _emit("debug", 
+        _emit(
+            "debug",
             "llm_call_started",
             model=getattr(event, "model", None),
             task=event.task_name,
@@ -162,7 +170,8 @@ def install_crew_logging() -> None:
 
     @crewai_event_bus.on(LLMCallCompletedEvent)
     def _on_llm_completed(_source: Any, event: LLMCallCompletedEvent) -> None:
-        _emit("debug", 
+        _emit(
+            "debug",
             "llm_call_completed",
             model=getattr(event, "model", None),
             task=event.task_name,
@@ -171,7 +180,8 @@ def install_crew_logging() -> None:
 
     @crewai_event_bus.on(LLMCallFailedEvent)
     def _on_llm_failed(_source: Any, event: LLMCallFailedEvent) -> None:
-        _emit("error", 
+        _emit(
+            "error",
             "llm_call_failed",
             model=getattr(event, "model", None),
             task=getattr(event, "task_name", None),

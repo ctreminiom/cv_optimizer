@@ -5,38 +5,47 @@ report" pipeline parses the CV and job, runs five parallel evaluators (HR,
 hiring manager, technical, ATS, gap), consolidates the feedback, and renders
 the final report. Optional steps: competitor simulation.
 """
+
 from __future__ import annotations
 
-import os
 from pathlib import Path
-
 from typing import Protocol
 
-from crewai import Agent, Crew, Task, Process, LLM
+from crewai import LLM, Agent, Crew, Process, Task
 from crewai.project import CrewBase, agent, crew, task
 
 from src.constants import (
-    DEFAULT_MODEL_HAIKU, DEFAULT_MODEL_SONNET,
-    TASK_PARSE_JOB, TASK_PARSE_CV, TASK_HR_EVAL, TASK_HIRING_EVAL,
-    TASK_TECHNICAL_EVAL, TASK_ATS_EVAL, TASK_GAP_ANALYSIS,
-    TASK_SECOND_OPINION, TASK_COMPETITOR, TASK_CONSOLIDATE, TASK_INTERVIEW_PREP,
+    TASK_ATS_EVAL,
+    TASK_COMPETITOR,
+    TASK_CONSOLIDATE,
+    TASK_GAP_ANALYSIS,
+    TASK_HIRING_EVAL,
+    TASK_HR_EVAL,
+    TASK_INTERVIEW_PREP,
+    TASK_PARSE_CV,
+    TASK_PARSE_JOB,
+    TASK_SECOND_OPINION,
+    TASK_TECHNICAL_EVAL,
+)
+from src.guardrails import (
+    candidate_profile_completeness,
+    consolidated_feedback_present,
+    job_posting_completeness,
+)
+from src.models import (
+    AgentEvaluation,
+    ATSReport,
+    CompetitorProfile,
+    GapAnalysis,
+    JobPosting,
+    SecondOpinion,
 )
 from src.settings import get_settings
 from src.tools import (
-    parse_job_pdf,
-    parse_cv,
     compute_keyword_match,
     load_domain_knowledge_base,
-)
-from src.guardrails import (
-    job_posting_completeness,
-    candidate_profile_completeness,
-    consolidated_feedback_present,
-)
-from src.models import (
-    JobPosting,
-    AgentEvaluation, GapAnalysis, ATSReport, SecondOpinion,
-    CompetitorProfile,
+    parse_cv,
+    parse_job_pdf,
 )
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -57,13 +66,13 @@ class CrewPlugin(Protocol):
     Implement this protocol to add optional agents without modifying the crew.
     """
 
-    def extra_tasks(self, crew_instance: "CVOptimizerCrew") -> list[Task]: ...
+    def extra_tasks(self, crew_instance: CVOptimizerCrew) -> list[Task]: ...
 
 
 class CompetitorPlugin:
     """Optional competitor simulation — adds _competitor_simulation_task."""
 
-    def extra_tasks(self, crew_instance: "CVOptimizerCrew") -> list[Task]:
+    def extra_tasks(self, crew_instance: CVOptimizerCrew) -> list[Task]:
         return [crew_instance._competitor_simulation_task()]
 
 
@@ -125,50 +134,77 @@ class CVOptimizerCrew:
     # ── Haiku-tier agents (parsing & extraction) ─────────────────────────
     @agent
     def _job_posting_parser_agent(self) -> Agent:
-        return Agent(config=self.agents_config["job_posting_parser_agent"],
-                     tools=[parse_job_pdf], llm=_llm("haiku", max_tokens=8192),
-                     verbose=True, max_iter=6, allow_delegation=False)
+        return Agent(
+            config=self.agents_config["job_posting_parser_agent"],
+            tools=[parse_job_pdf],
+            llm=_llm("haiku", max_tokens=8192),
+            verbose=True,
+            max_iter=6,
+            allow_delegation=False,
+        )
 
     @agent
     def _cv_parser_agent(self) -> Agent:
-        return Agent(config=self.agents_config["cv_parser_agent"],
-                     tools=[parse_cv], llm=_llm("haiku", max_tokens=8192),
-                     verbose=True, max_iter=6, allow_delegation=False)
+        return Agent(
+            config=self.agents_config["cv_parser_agent"],
+            tools=[parse_cv],
+            llm=_llm("haiku", max_tokens=8192),
+            verbose=True,
+            max_iter=6,
+            allow_delegation=False,
+        )
 
     @agent
     def _ats_optimizer_agent(self) -> Agent:
-        return Agent(config=self.agents_config["ats_optimizer_agent"],
-                     tools=[compute_keyword_match],
-                     llm=_llm("haiku"),
-                     verbose=True, max_iter=6, allow_delegation=False)
+        return Agent(
+            config=self.agents_config["ats_optimizer_agent"],
+            tools=[compute_keyword_match],
+            llm=_llm("haiku"),
+            verbose=True,
+            max_iter=6,
+            allow_delegation=False,
+        )
 
     # ── Sonnet-tier agents (reasoning-heavy) ─────────────────────────────
     @agent
     def _hr_specialist_agent(self) -> Agent:
-        return Agent(config=self.agents_config["hr_specialist_agent"],
-                     llm=_llm("sonnet"),
-                     verbose=True, max_iter=8, allow_delegation=False)
+        return Agent(
+            config=self.agents_config["hr_specialist_agent"],
+            llm=_llm("sonnet"),
+            verbose=True,
+            max_iter=8,
+            allow_delegation=False,
+        )
 
     @agent
     def _hiring_manager_agent(self) -> Agent:
-        return Agent(config=self.agents_config["hiring_manager_agent"],
-                     llm=_llm("sonnet"),
-                     verbose=True, max_iter=8, allow_delegation=False)
+        return Agent(
+            config=self.agents_config["hiring_manager_agent"],
+            llm=_llm("sonnet"),
+            verbose=True,
+            max_iter=8,
+            allow_delegation=False,
+        )
 
     @agent
     def _technical_specialist_agent(self) -> Agent:
-        cfg = _apply_role_config(self.agents_config["technical_specialist_agent"], self.role_type_hint)
+        cfg = _apply_role_config(
+            self.agents_config["technical_specialist_agent"], self.role_type_hint
+        )
         kwargs: dict = dict(
             config=cfg,
             tools=[load_domain_knowledge_base],
             llm=_llm("sonnet"),
-            verbose=True, max_iter=8, allow_delegation=False,
+            verbose=True,
+            max_iter=8,
+            allow_delegation=False,
         )
         # Attach the curated knowledge base as a CrewAI Knowledge source so
         # the framework handles chunking + retrieval. Opt-in via CREW_MEMORY=1
         # to keep the zero-key install path working.
         if get_settings().crew_memory:
             from src.knowledge import embedder_config, knowledge_sources_for
+
             sources = knowledge_sources_for(self.role_type_hint)
             if sources:
                 kwargs["knowledge_sources"] = sources
@@ -182,11 +218,14 @@ class CVOptimizerCrew:
         # synthesis over upstream context. File-writing tools kept getting
         # invoked with empty args, so the .md / .docx outputs are generated
         # deterministically in main.py from the task outputs instead.
-        return Agent(config=self.agents_config["coordinator_agent"],
-                     tools=[],
-                     llm=_llm("sonnet"),
-                     verbose=True, max_iter=10,
-                     allow_delegation=False)
+        return Agent(
+            config=self.agents_config["coordinator_agent"],
+            tools=[],
+            llm=_llm("sonnet"),
+            verbose=True,
+            max_iter=10,
+            allow_delegation=False,
+        )
 
     # ─── TASKS — ingestion ─────────────────────────────────────────────────
 
@@ -230,7 +269,8 @@ class CVOptimizerCrew:
             agent=self._hiring_manager_agent(),
             context=[self._parse_job_task(), self._parse_cv_task()],
             output_pydantic=AgentEvaluation,
-            async_execution=True,)
+            async_execution=True,
+        )
 
     @task
     def _technical_evaluation_task(self) -> Task:
@@ -239,7 +279,8 @@ class CVOptimizerCrew:
             agent=self._technical_specialist_agent(),
             context=[self._parse_job_task(), self._parse_cv_task()],
             output_pydantic=AgentEvaluation,
-            async_execution=True,)
+            async_execution=True,
+        )
 
     @task
     def _ats_evaluation_task(self) -> Task:
@@ -248,7 +289,8 @@ class CVOptimizerCrew:
             agent=self._ats_optimizer_agent(),
             context=[self._parse_job_task(), self._parse_cv_task()],
             output_pydantic=ATSReport,
-            async_execution=True,)
+            async_execution=True,
+        )
 
     @task
     def _gap_analysis_task(self) -> Task:
@@ -257,7 +299,8 @@ class CVOptimizerCrew:
             agent=self._coordinator_agent(),
             context=[self._parse_job_task(), self._parse_cv_task()],
             output_pydantic=GapAnalysis,
-            async_execution=True,)
+            async_execution=True,
+        )
 
     # ─── TASKS — tiebreaker ────────────────────────────────────────────────
 
@@ -314,8 +357,11 @@ class CVOptimizerCrew:
         return Task(
             config=self.tasks_config[TASK_INTERVIEW_PREP],
             agent=self._coordinator_agent(),
-            context=[self._parse_job_task(), self._parse_cv_task(),
-                     self._consolidate_feedback_task()],
+            context=[
+                self._parse_job_task(),
+                self._parse_cv_task(),
+                self._consolidate_feedback_task(),
+            ],
         )
 
     # ─── Output assembly ───────────────────────────────────────────────────
@@ -361,6 +407,7 @@ class CVOptimizerCrew:
         }
         if memory_enabled:
             from src.knowledge import embedder_config
+
             crew_kwargs["embedder"] = embedder_config()
         return Crew(**crew_kwargs)
 

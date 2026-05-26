@@ -1,9 +1,10 @@
 """Tests for the local embedder and lru_cache model loading."""
+
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-from src.search_pipeline import _LocalEmbedder, _load_local_model
+from src.search_pipeline import _load_local_model, _LocalEmbedder
 
 
 def test_local_embedder_instances_are_independent() -> None:

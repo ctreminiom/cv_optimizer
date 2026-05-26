@@ -2,6 +2,7 @@
 
 Supports DOCX (via python-docx) and PDF (via pdfplumber).
 """
+
 from __future__ import annotations
 
 import json
@@ -32,9 +33,11 @@ def parse_cv(cv_path: str) -> str:
         return _parse_cv_docx_impl(path)
     if ext == ".pdf":
         return _parse_cv_pdf_impl(path)
-    return json.dumps({
-        "error": f"unsupported CV format: {ext}. Supported: .docx, .pdf",
-    })
+    return json.dumps(
+        {
+            "error": f"unsupported CV format: {ext}. Supported: .docx, .pdf",
+        }
+    )
 
 
 def _parse_cv_docx_impl(path: Path) -> str:
@@ -60,14 +63,16 @@ def _parse_cv_docx_impl(path: Path) -> str:
     for tbl in doc.tables:
         tables_text.append([[cell.text.strip() for cell in row.cells] for row in tbl.rows])
 
-    return json.dumps({
-        "source_file": str(path),
-        "source_format": "docx",
-        "can_use_as_template": True,
-        "paragraph_count": len(paragraphs),
-        "paragraphs": paragraphs,
-        "tables": tables_text,
-    })
+    return json.dumps(
+        {
+            "source_file": str(path),
+            "source_format": "docx",
+            "can_use_as_template": True,
+            "paragraph_count": len(paragraphs),
+            "paragraphs": paragraphs,
+            "tables": tables_text,
+        }
+    )
 
 
 def _parse_cv_pdf_impl(path: Path) -> str:
@@ -99,15 +104,17 @@ def _parse_cv_pdf_impl(path: Path) -> str:
     except Exception as e:
         return json.dumps({"error": f"failed to parse PDF CV: {e}"})
 
-    return json.dumps({
-        "source_file": str(path),
-        "source_format": "pdf",
-        "can_use_as_template": False,   # PDFs cannot be reused as DOCX templates
-        "page_count": page_count,
-        "paragraph_count": len(paragraphs),
-        "paragraphs": paragraphs,
-        "tables": [],
-    })
+    return json.dumps(
+        {
+            "source_file": str(path),
+            "source_format": "pdf",
+            "can_use_as_template": False,  # PDFs cannot be reused as DOCX templates
+            "page_count": page_count,
+            "paragraph_count": len(paragraphs),
+            "paragraphs": paragraphs,
+            "tables": [],
+        }
+    )
 
 
 # Backwards-compatible alias so existing code paths keep working.

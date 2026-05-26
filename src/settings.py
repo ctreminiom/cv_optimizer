@@ -6,6 +6,7 @@ ValidationError if required keys are missing. Optional keys remain `None`.
 Every env variable referenced anywhere in the codebase should be declared
 here so `.env.example` is the single source of truth.
 """
+
 from __future__ import annotations
 
 from pydantic import Field, SecretStr
@@ -23,9 +24,7 @@ class Settings(BaseSettings):
     )
 
     # ── Required ─────────────────────────────────────────────────────────
-    anthropic_api_key: SecretStr = Field(
-        description="https://console.anthropic.com/settings/keys"
-    )
+    anthropic_api_key: SecretStr = Field(description="https://console.anthropic.com/settings/keys")
 
     # ── Models ───────────────────────────────────────────────────────────
     model_haiku: str = "claude-haiku-4-5-20251001"

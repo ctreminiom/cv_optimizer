@@ -1,13 +1,14 @@
 """Tests for DIP-fixed renderer functions — injectable LLM client."""
+
 from __future__ import annotations
 
 import json
 from unittest.mock import MagicMock
 
 from src.report.renderer import (
-    _generate_strategic_insights,
     _company_costa_rica_blurb,
     _generate_cv_proposal_with_opus,
+    _generate_strategic_insights,
 )
 
 
@@ -41,6 +42,7 @@ def test_company_costa_rica_blurb_uses_injected_client() -> None:
 
 def test_company_costa_rica_blurb_caches_result() -> None:
     import src.report.renderer as rmod
+
     rmod._CR_BLURB_CACHE.pop("CacheTestCo", None)
 
     client = _mock_client("CacheTestCo has a small CR office.")

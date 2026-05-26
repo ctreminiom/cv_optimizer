@@ -1,4 +1,5 @@
 """Unit tests for role_taxonomy loader (C7)."""
+
 from __future__ import annotations
 
 from src.role_taxonomy import all_aliases, expand_keywords

@@ -3,6 +3,7 @@
 Uses a registry of TaskExtractor instances so new tasks can register
 themselves without modifying augment_report().
 """
+
 from __future__ import annotations
 
 import json
@@ -15,6 +16,7 @@ __all__ = ["augment_report", "register_extractor", "TaskExtractor"]
 @runtime_checkable
 class TaskExtractor(Protocol):
     """Extract (report_key, value) from one CrewAI TaskOutput."""
+
     def extract(self, task_out: Any) -> tuple[str, Any] | None: ...
 
 
@@ -28,6 +30,7 @@ def register_extractor(extractor: TaskExtractor) -> TaskExtractor:
     automatically so callers don't have to manage that themselves.
     """
     import inspect
+
     _REGISTRY.append(extractor() if inspect.isclass(extractor) else extractor)
     return extractor
 

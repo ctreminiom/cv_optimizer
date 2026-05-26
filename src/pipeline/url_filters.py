@@ -4,25 +4,56 @@ Used by the search command to drop false-positive opportunities (person /
 company profiles, LinkedIn aggregator pages, login-walled extracts, stale
 postings, foreign-country listings).
 """
+
 from __future__ import annotations
 
 import re
 
 COSTA_RICA_TERMS = [
-    "costa rica", "costa-rica", "costarica",
-    "san josé", "san jose", "heredia", "cartago", "alajuela",
-    "puntarenas", "guanacaste", "limón", "limon", "escazú", "escazu",
-    "santa ana", "belén", "belen",
-    " cr,", " cr ", " cr.", "(cr)", ",cr",
+    "costa rica",
+    "costa-rica",
+    "costarica",
+    "san josé",
+    "san jose",
+    "heredia",
+    "cartago",
+    "alajuela",
+    "puntarenas",
+    "guanacaste",
+    "limón",
+    "limon",
+    "escazú",
+    "escazu",
+    "santa ana",
+    "belén",
+    "belen",
+    " cr,",
+    " cr ",
+    " cr.",
+    "(cr)",
+    ",cr",
 ]
 
 REMOTE_TERMS = [
-    "fully remote", "100% remote", "remote-first", "remote first",
-    "work from anywhere", "anywhere in latam", "anywhere in latin america",
-    "remote position", "remote work", "remote opportunity",
-    "trabajo remoto", "trabaja desde casa", "teletrabajo",
-    "home office", "work from home", "remote (anywhere",
-    "remote, anywhere", "remote within", "open to remote",
+    "fully remote",
+    "100% remote",
+    "remote-first",
+    "remote first",
+    "work from anywhere",
+    "anywhere in latam",
+    "anywhere in latin america",
+    "remote position",
+    "remote work",
+    "remote opportunity",
+    "trabajo remoto",
+    "trabaja desde casa",
+    "teletrabajo",
+    "home office",
+    "work from home",
+    "remote (anywhere",
+    "remote, anywhere",
+    "remote within",
+    "open to remote",
     "this is a remote position",
 ]
 
@@ -49,45 +80,78 @@ LINKEDIN_AGGREGATOR_PATTERNS = [
 
 # URL substring → canonical source name.
 DOMAIN_TO_SOURCE = [
-    ("jobgether.com",       "jobgether"),
-    ("linkedin.com",        "linkedin"),
-    ("indeed.com",          "indeed"),
-    ("glassdoor.com",       "glassdoor"),
-    ("wellfound.com",       "wellfound"),
-    ("remoteok.com",        "remoteok"),
-    ("remoteok.io",         "remoteok"),
-    ("remote.co",           "remote_co"),
-    ("computrabajo.",       "computrabajo"),
-    ("hireline.io",         "hireline"),
-    ("getonbrd.com",        "getonboard"),
-    ("weworkremotely.com",  "weworkremotely"),
-    ("tecoloco.com",        "tecoloco"),
-    ("encuentra24.com",     "encuentra24"),
-    ("dice.com",            "dice"),
-    ("ziprecruiter.com",    "ziprecruiter"),
-    ("workable.com",        "workable"),
-    ("greenhouse.io",       "greenhouse"),
-    ("lever.co",            "lever"),
-    ("ashbyhq.com",         "ashby"),
+    ("jobgether.com", "jobgether"),
+    ("linkedin.com", "linkedin"),
+    ("indeed.com", "indeed"),
+    ("glassdoor.com", "glassdoor"),
+    ("wellfound.com", "wellfound"),
+    ("remoteok.com", "remoteok"),
+    ("remoteok.io", "remoteok"),
+    ("remote.co", "remote_co"),
+    ("computrabajo.", "computrabajo"),
+    ("hireline.io", "hireline"),
+    ("getonbrd.com", "getonboard"),
+    ("weworkremotely.com", "weworkremotely"),
+    ("tecoloco.com", "tecoloco"),
+    ("encuentra24.com", "encuentra24"),
+    ("dice.com", "dice"),
+    ("ziprecruiter.com", "ziprecruiter"),
+    ("workable.com", "workable"),
+    ("greenhouse.io", "greenhouse"),
+    ("lever.co", "lever"),
+    ("ashbyhq.com", "ashby"),
 ]
 
 LOGIN_WALL_PHRASES = [
-    "sign in to view", "sign in to see", "log in to see", "log in to view",
-    "login to apply", "you need to be signed in", "create a free account to",
-    "sign up to apply", "join linkedin", "to see who linkedin members",
-    "agree & join", "sign in to leverage",
-    "linkedin is the world's largest", "make the most of your professional life",
-    "join now to see who", "linkedin members worldwide", "agree & join linkedin",
-    "by clicking continue to join", "by clicking continue, you agree",
+    "sign in to view",
+    "sign in to see",
+    "log in to see",
+    "log in to view",
+    "login to apply",
+    "you need to be signed in",
+    "create a free account to",
+    "sign up to apply",
+    "join linkedin",
+    "to see who linkedin members",
+    "agree & join",
+    "sign in to leverage",
+    "linkedin is the world's largest",
+    "make the most of your professional life",
+    "join now to see who",
+    "linkedin members worldwide",
+    "agree & join linkedin",
+    "by clicking continue to join",
+    "by clicking continue, you agree",
     "welcome back",
-    "is the world's largest professional", "ready to start your career",
-    "explore careers at", "join our talent network",
+    "is the world's largest professional",
+    "ready to start your career",
+    "explore careers at",
+    "join our talent network",
 ]
 
 SLUG_STOP_WORDS = {
-    "the", "and", "for", "with", "job", "jobs", "view", "apply",
-    "remote", "view-job", "view_job", "in", "at", "of", "to", "from",
-    "careers", "career", "position", "opening", "id", "req",
+    "the",
+    "and",
+    "for",
+    "with",
+    "job",
+    "jobs",
+    "view",
+    "apply",
+    "remote",
+    "view-job",
+    "view_job",
+    "in",
+    "at",
+    "of",
+    "to",
+    "from",
+    "careers",
+    "career",
+    "position",
+    "opening",
+    "id",
+    "req",
 }
 
 STALE_AGE_PATTERNS = [
@@ -167,8 +231,7 @@ def is_stale_listing(content: str, max_months: int = 6) -> bool:
     return False
 
 
-def content_matches_url_slug(content: str, url: str,
-                              min_match_pct: float = 0.4) -> bool:
+def content_matches_url_slug(content: str, url: str, min_match_pct: float = 0.4) -> bool:
     """Confirm an extracted body is actually about the URL's job slug. Catches
     ATS 302 redirects to careers indexes.
     """
@@ -190,8 +253,7 @@ def is_login_walled(content: str) -> bool:
     return any(p in lower for p in LOGIN_WALL_PHRASES)
 
 
-def is_location_relevant(content: str, location: str,
-                         allow_remote: bool = True) -> bool:
+def is_location_relevant(content: str, location: str, allow_remote: bool = True) -> bool:
     """True if the body mentions the target location or, when allow_remote is
     set, indicates the role is remote-friendly.
     """
@@ -211,12 +273,16 @@ def is_location_relevant(content: str, location: str,
             return True
         if re.search(
             r"\b(?:location|based|position|role|hiring|work|employee)\b"
-            r"[^.\n]{0,60}\bremote\b", lower
+            r"[^.\n]{0,60}\bremote\b",
+            lower,
         ):
             return True
-        if re.search(r"\b(?:location|workplace|workplace type|work setup|"
-                     r"job type|job mode|modality|tipo de trabajo|"
-                     r"modalidad)\s*[:=]\s*remote\b", lower):
+        if re.search(
+            r"\b(?:location|workplace|workplace type|work setup|"
+            r"job type|job mode|modality|tipo de trabajo|"
+            r"modalidad)\s*[:=]\s*remote\b",
+            lower,
+        ):
             return True
     return False
 
@@ -237,16 +303,29 @@ def summarize_extracted_content(content: str, max_chars: int = 600) -> str:
         if not line:
             continue
         low = line.lower()
-        if any(skip in low for skip in (
-            "cookie", "we use cookies", "skip to", "menu", "subscribe",
-            "newsletter", "follow us", "back to", "breadcrumb",
-            "table of contents", "sign in", "log in", "create account",
-        )):
+        if any(
+            skip in low
+            for skip in (
+                "cookie",
+                "we use cookies",
+                "skip to",
+                "menu",
+                "subscribe",
+                "newsletter",
+                "follow us",
+                "back to",
+                "breadcrumb",
+                "table of contents",
+                "sign in",
+                "log in",
+                "create account",
+            )
+        ):
             continue
         if len(line) < 30 and not line.endswith("."):
             continue
         lines.append(line)
-        if sum(len(l) for l in lines) >= max_chars * 1.2:
+        if sum(len(line) for line in lines) >= max_chars * 1.2:
             break
 
     text = " ".join(lines).strip()
@@ -255,5 +334,5 @@ def summarize_extracted_content(content: str, max_chars: int = 600) -> str:
     cut = text[:max_chars]
     last_period = cut.rfind(". ")
     if last_period > max_chars * 0.6:
-        return cut[:last_period + 1]
+        return cut[: last_period + 1]
     return cut.rstrip() + "…"

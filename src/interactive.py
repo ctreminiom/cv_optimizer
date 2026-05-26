@@ -8,16 +8,14 @@ keep / edit / revert / skip it.
 User decisions are persisted via memory.py so they inform future runs
 of the same candidate.
 """
+
 from __future__ import annotations
 
-from typing import List, Optional
-
-from src.memory import remember, recall
+from src.memory import recall, remember
 from src.models import RewrittenBullet
 
 
-def review_bullet(bullet: RewrittenBullet, candidate_name: str = "default"
-                  ) -> RewrittenBullet:
+def review_bullet(bullet: RewrittenBullet, candidate_name: str = "default") -> RewrittenBullet:
     """
     Show original vs rewritten and prompt the user.
     Returns the (possibly modified) RewrittenBullet.
@@ -37,33 +35,44 @@ def review_bullet(bullet: RewrittenBullet, candidate_name: str = "default"
         print("  Enter your version (one line):")
         edited = input("  > ").strip()
         if edited:
-            bullet = bullet.model_copy(update={
-                "rewritten": edited,
-                "reasoning": "user edit during interactive review",
-            })
-            _record_decision(candidate_name, "user_edit",
-                             {"original": bullet.original, "kept": edited})
+            bullet = bullet.model_copy(
+                update={
+                    "rewritten": edited,
+                    "reasoning": "user edit during interactive review",
+                }
+            )
+            _record_decision(
+                candidate_name, "user_edit", {"original": bullet.original, "kept": edited}
+            )
     elif choice in ("r", "revert"):
-        bullet = bullet.model_copy(update={
-            "rewritten": bullet.original,
-            "reasoning": "user reverted to original",
-        })
+        bullet = bullet.model_copy(
+            update={
+                "rewritten": bullet.original,
+                "reasoning": "user reverted to original",
+            }
+        )
         _record_decision(candidate_name, "user_revert", {"text": bullet.original})
     elif choice in ("s", "skip"):
-        bullet = bullet.model_copy(update={
-            "rewritten": "",
-            "reasoning": "user skipped",
-        })
+        bullet = bullet.model_copy(
+            update={
+                "rewritten": "",
+                "reasoning": "user skipped",
+            }
+        )
     else:
         # default → keep
-        _record_decision(candidate_name, "user_keep",
-                         {"original": bullet.original, "rewritten": bullet.rewritten})
+        _record_decision(
+            candidate_name,
+            "user_keep",
+            {"original": bullet.original, "rewritten": bullet.rewritten},
+        )
 
     return bullet
 
 
-def review_section(section_name: str, bullets: List[RewrittenBullet],
-                   candidate_name: str = "default") -> List[RewrittenBullet]:
+def review_section(
+    section_name: str, bullets: list[RewrittenBullet], candidate_name: str = "default"
+) -> list[RewrittenBullet]:
     """Walk the user through every bullet in a section."""
     print(f"\n══ Reviewing section: {section_name} ══")
     return [review_bullet(b, candidate_name) for b in bullets]

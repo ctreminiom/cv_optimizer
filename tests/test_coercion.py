@@ -1,4 +1,5 @@
 """Tests for src/pipeline/coercion.py."""
+
 from __future__ import annotations
 
 from src.pipeline.coercion import as_dict, as_list, as_list_of_dicts, coerce_task_output
@@ -16,7 +17,7 @@ def test_as_dict_returns_empty_for_invalid():
     assert as_dict(None) == {}
     assert as_dict("not json") == {}
     assert as_dict(42) == {}
-    assert as_dict('[1, 2, 3]') == {}  # list, not dict
+    assert as_dict("[1, 2, 3]") == {}  # list, not dict
 
 
 def test_as_dict_parses_python_literal():
@@ -57,6 +58,7 @@ def test_as_list_of_dicts_parses_dict_strings():
 
 
 # ── coerce_task_output ──────────────────────────────────────────────────────
+
 
 def test_coerce_task_output_none_returns_empty():
     assert coerce_task_output(None) == {}

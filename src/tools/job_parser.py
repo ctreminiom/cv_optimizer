@@ -2,6 +2,7 @@
 
 Supports PDF (via pdfplumber), plain text (.txt), and Markdown (.md) files.
 """
+
 from __future__ import annotations
 
 import json
@@ -43,20 +44,20 @@ def parse_job_pdf(pdf_path: str) -> str:
 
         structured = _extract_job_info_with_claude(raw_text)
         # The .md's first line is an authoritative title — prefer it over LLM guess.
-        if md_title and not structured.get("title"):
-            structured["title"] = md_title
-        elif md_title:
+        if md_title and not structured.get("title") or md_title:
             structured["title"] = md_title
         if source_url:
             structured["source_url"] = source_url
 
-        return json.dumps({
-            "source_file": str(path),
-            "page_count": 1,
-            "char_count": len(raw_text),
-            "raw_text": raw_text,
-            **structured,          # merges title, company, etc. if Claude found them
-        })
+        return json.dumps(
+            {
+                "source_file": str(path),
+                "page_count": 1,
+                "char_count": len(raw_text),
+                "raw_text": raw_text,
+                **structured,  # merges title, company, etc. if Claude found them
+            }
+        )
 
     # ── PDF path ──────────────────────────────────────────────────────────────
     try:
@@ -73,12 +74,14 @@ def parse_job_pdf(pdf_path: str) -> str:
         return json.dumps({"error": f"failed to parse PDF: {e}"})
 
     full_text = "\n\n".join(pages_text).strip()
-    return json.dumps({
-        "source_file": str(path),
-        "page_count": len(pages_text),
-        "char_count": len(full_text),
-        "raw_text": full_text,
-    })
+    return json.dumps(
+        {
+            "source_file": str(path),
+            "page_count": len(pages_text),
+            "char_count": len(full_text),
+            "raw_text": full_text,
+        }
+    )
 
 
 def _split_markdown_job(raw_text: str) -> tuple:
@@ -126,6 +129,7 @@ def _extract_job_info_with_claude(
     if client is None:
         try:
             from src.llm.client import get_default_client
+
             client = get_default_client()
         except Exception:
             return {}
@@ -141,6 +145,7 @@ def _extract_job_info_with_claude(
 
     try:
         from src.settings import get_settings
+
         content = client.complete(
             model=get_settings().model_haiku,
             max_tokens=1024,
@@ -152,4 +157,3 @@ def _extract_job_info_with_claude(
         return json.loads(content)
     except Exception:
         return {}
-

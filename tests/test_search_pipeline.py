@@ -1,4 +1,5 @@
 """Unit tests for the search post-processing pipeline (C1–C4, C10)."""
+
 from __future__ import annotations
 
 from src.search_pipeline import (
@@ -7,8 +8,9 @@ from src.search_pipeline import (
 )
 
 
-def _make_op(title: str, body: str, source: str = "linkedin",
-             link_type: str = "direct_listing") -> dict:
+def _make_op(
+    title: str, body: str, source: str = "linkedin", link_type: str = "direct_listing"
+) -> dict:
     return {
         "title": title,
         "company": "Acme",
@@ -65,5 +67,6 @@ def test_rerank_keeps_search_url_pages_as_fallback():
         _make_op("LinkedIn search", "", link_type="search_url"),
     ]
     out = rerank_by_embeddings(ops, profile_summary=profile, top_k=1)
-    assert any(o["link_type"] == "search_url" for o in out), \
+    assert any(o["link_type"] == "search_url" for o in out), (
         "aggregator pages should always be appended as fallback"
+    )

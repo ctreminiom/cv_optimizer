@@ -1,4 +1,5 @@
 """Smoke tests for the presentation layer (B11 extraction)."""
+
 from __future__ import annotations
 
 import importlib

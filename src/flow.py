@@ -11,20 +11,21 @@ Usage:
 The module imports without error if `crewai.flow` is unavailable; callers
 should branch on `is_available()`.
 """
+
 from __future__ import annotations
 
 import hashlib
-import json
 import time
 from pathlib import Path
 from typing import Any
 
-from src.pipeline.coercion import coerce_task_output as _coerce_task_output
-
 from pydantic import BaseModel, Field
+
+from src.pipeline.coercion import coerce_task_output as _coerce_task_output
 
 try:
     from crewai.flow.flow import Flow, listen, persist, router, start
+
     _FLOW_AVAILABLE = True
 except ImportError:
     _FLOW_AVAILABLE = False
@@ -33,6 +34,7 @@ except ImportError:
     def _noop(*_args, **_kwargs):
         def _wrap(fn):
             return fn
+
         return _wrap
 
     start = listen = router = persist = _noop  # type: ignore[assignment]
@@ -76,18 +78,20 @@ _as_dict = _coerce_task_output
 
 
 def _task_key(task_output: Any) -> str:
-    name = (getattr(task_output, "name", None) or
-            getattr(getattr(task_output, "task", None), "name", "") or
-            getattr(getattr(task_output, "task", None), "description", "")[:30])
+    name = (
+        getattr(task_output, "name", None)
+        or getattr(getattr(task_output, "task", None), "name", "")
+        or getattr(getattr(task_output, "task", None), "description", "")[:30]
+    )
     return (name or "").lower()
 
 
 _STATE_FIELD_FOR_TASK = (
-    ("parse_job",     "parsed_job"),
-    ("parse_cv",      "parsed_cv"),
-    ("consolidate",   "consolidated"),
-    ("interview",     "interview_prep"),
-    ("competitor",    "competitor"),
+    ("parse_job", "parsed_job"),
+    ("parse_cv", "parsed_cv"),
+    ("consolidate", "consolidated"),
+    ("interview", "interview_prep"),
+    ("competitor", "competitor"),
 )
 
 
@@ -95,7 +99,6 @@ if _FLOW_AVAILABLE:
 
     @persist
     class CvOptimizerFlow(Flow[CvState]):
-
         @start()
         def ingest(self) -> str:
             self.state.started_at = time.time()
@@ -107,7 +110,7 @@ if _FLOW_AVAILABLE:
         @listen(ingest)
         def evaluate(self, _: str) -> str:
             self.state.phase = "evaluate"
-            from src.crew import CVOptimizerCrew, CompetitorPlugin
+            from src.crew import CompetitorPlugin, CVOptimizerCrew
 
             plugins = [CompetitorPlugin()] if self.state.with_competitor else []
             crew = CVOptimizerCrew(

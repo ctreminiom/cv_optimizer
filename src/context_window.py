@@ -8,10 +8,10 @@ For example, the Technical Specialist for a Go job only needs the bullets
 mentioning Go, infrastructure, performance — not the candidate's
 education or unrelated side projects.
 """
+
 from __future__ import annotations
 
 import json
-from typing import List
 
 from src.models import CandidateProfile, JobPosting
 
@@ -24,8 +24,7 @@ def filter_for_hr(profile: CandidateProfile) -> CandidateProfile:
     return filtered
 
 
-def filter_for_technical(profile: CandidateProfile,
-                         job: JobPosting) -> CandidateProfile:
+def filter_for_technical(profile: CandidateProfile, job: JobPosting) -> CandidateProfile:
     """
     Keep only bullets that mention any token from the job's tech stack
     or ATS keywords. Senior CVs often have 4 pages of detail; this drops
@@ -36,11 +35,10 @@ def filter_for_technical(profile: CandidateProfile,
         return profile
 
     filtered = profile.model_copy(deep=True)
-    new_xp: List = []
+    new_xp: list = []
     for xp in filtered.work_experience:
         relevant_bullets = [
-            b for b in xp.bullets
-            if any(term in b.lower() for term in relevant_terms)
+            b for b in xp.bullets if any(term in b.lower() for term in relevant_terms)
         ]
         # Always keep at least the role even if no bullets matched, so the
         # technical agent sees company/title context.
@@ -55,17 +53,32 @@ def filter_for_hiring_manager(profile: CandidateProfile) -> CandidateProfile:
     Hiring managers care about quantified impact. Keep bullets containing
     numbers, percentages, dollar amounts, or scope words (team, users, etc).
     """
-    impact_markers = ["%", "$", "x ", "k ", "m ", "billion", "million",
-                      "team of", "users", "customers", "engineers",
-                      "reduced", "increased", "improved", "shipped",
-                      "launched", "built", "led"]
+    impact_markers = [
+        "%",
+        "$",
+        "x ",
+        "k ",
+        "m ",
+        "billion",
+        "million",
+        "team of",
+        "users",
+        "customers",
+        "engineers",
+        "reduced",
+        "increased",
+        "improved",
+        "shipped",
+        "launched",
+        "built",
+        "led",
+    ]
 
     filtered = profile.model_copy(deep=True)
-    new_xp: List = []
+    new_xp: list = []
     for xp in profile.work_experience:
         impact_bullets = [
-            b for b in xp.bullets
-            if any(marker in b.lower() for marker in impact_markers)
+            b for b in xp.bullets if any(marker in b.lower() for marker in impact_markers)
         ]
         xp_copy = xp.model_copy(update={"bullets": impact_bullets or xp.bullets})
         new_xp.append(xp_copy)

@@ -11,6 +11,7 @@ Composed of four independently usable stages:
 degrades gracefully when its optional dependency is missing, so a zero-key
 zero-extras install still returns the deep-link fallback.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -28,6 +29,7 @@ _CACHE_DIR = Path(__file__).resolve().parent.parent / "cache" / "jd"
 
 
 # ── JD body fetch ──────────────────────────────────────────────────────────
+
 
 def _jd_cache_path(url: str) -> Path:
     return _CACHE_DIR / f"{hashlib.sha1(url.encode()).hexdigest()[:24]}.json"
@@ -55,8 +57,10 @@ def _fetch_html(url: str, timeout: int = 12) -> str | None:
 def _extract_body(html: str) -> str:
     try:
         import trafilatura
-        return (trafilatura.extract(html, include_comments=False,
-                                     include_tables=False) or "").strip()
+
+        return (
+            trafilatura.extract(html, include_comments=False, include_tables=False) or ""
+        ).strip()
     except ImportError:
         # Crude tag-strip fallback so users without trafilatura still benefit
         text = re.sub(r"<script.*?</script>", " ", html, flags=re.DOTALL | re.IGNORECASE)
@@ -89,9 +93,9 @@ def _is_aggregator(op: dict[str, Any]) -> bool:
     return op.get("link_type") == "search_url"
 
 
-def fetch_jd_bodies(opportunities: list[dict[str, Any]], *,
-                    max_to_fetch: int = 30,
-                    cache: bool = True) -> list[dict[str, Any]]:
+def fetch_jd_bodies(
+    opportunities: list[dict[str, Any]], *, max_to_fetch: int = 30, cache: bool = True
+) -> list[dict[str, Any]]:
     """Fetch and clean the JD body for direct postings. Aggregator pages pass
     through unchanged. Cached on disk by URL hash.
     """
@@ -122,6 +126,7 @@ def fetch_jd_bodies(opportunities: list[dict[str, Any]], *,
 
 # ── Embedding reranker ─────────────────────────────────────────────────────
 
+
 class Embedder(Protocol):
     """Embed a batch of texts into a 2-D array. Return None to signal that
     the backend is unavailable and the caller should fall back."""
@@ -133,6 +138,7 @@ class Embedder(Protocol):
 def _load_local_model():
     """Load the sentence-transformer model once and cache it for the process lifetime."""
     from sentence_transformers import SentenceTransformer
+
     return SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
 
 
@@ -152,8 +158,9 @@ class _OpenAIEmbedder:
         if not os.getenv("OPENAI_API_KEY"):
             return None
         try:
-            from openai import OpenAI
             import numpy as np
+            from openai import OpenAI
+
             resp = OpenAI().embeddings.create(model="text-embedding-3-small", input=texts)
             return np.array([d.embedding for d in resp.data])
         except Exception as e:
@@ -166,10 +173,13 @@ class _VoyageEmbedder:
         if not os.getenv("VOYAGE_API_KEY"):
             return None
         try:
-            import voyageai
             import numpy as np
+            import voyageai
+
             resp = voyageai.Client().embed(
-                texts=texts, model="voyage-3-lite", input_type="document",
+                texts=texts,
+                model="voyage-3-lite",
+                input_type="document",
             )
             return np.array(resp.embeddings)
         except Exception as e:
@@ -214,10 +224,13 @@ def _doc_text(op: dict[str, Any], limit: int = 4000) -> str:
     return (op.get("body") or op.get("snippet") or op.get("title") or "")[:limit]
 
 
-def rerank_by_embeddings(opportunities: list[dict[str, Any]], *,
-                         profile_summary: str,
-                         provider: str = "local",
-                         top_k: int = 10) -> list[dict[str, Any]]:
+def rerank_by_embeddings(
+    opportunities: list[dict[str, Any]],
+    *,
+    profile_summary: str,
+    provider: str = "local",
+    top_k: int = 10,
+) -> list[dict[str, Any]]:
     """Sort opportunities by similarity to the candidate profile and return
     the top_k. Aggregator pages are kept at the tail as fallback links.
     """
@@ -230,7 +243,9 @@ def rerank_by_embeddings(opportunities: list[dict[str, Any]], *,
     if not docs:
         return opportunities[:top_k]
 
-    for op, score in zip(rankable, _similarity_scores(profile_summary, docs, provider)):
+    for op, score in zip(
+        rankable, _similarity_scores(profile_summary, docs, provider), strict=False
+    ):
         op["rerank_score"] = int(max(0.0, min(1.0, score)) * 100)
 
     rankable.sort(key=lambda o: o.get("rerank_score", 0), reverse=True)
@@ -239,9 +254,10 @@ def rerank_by_embeddings(opportunities: list[dict[str, Any]], *,
 
 # ── Keyword-overlap filter ─────────────────────────────────────────────────
 
-def apply_min_match(opportunities: list[dict[str, Any]], *,
-                    profile_keywords: list[str],
-                    min_match: int) -> list[dict[str, Any]]:
+
+def apply_min_match(
+    opportunities: list[dict[str, Any]], *, profile_keywords: list[str], min_match: int
+) -> list[dict[str, Any]]:
     if min_match <= 0 or not profile_keywords:
         return opportunities
     keywords = {k.lower() for k in profile_keywords if k}
@@ -372,12 +388,14 @@ def llm_judge(
     if client is None:
         try:
             from src.llm.client import get_default_client
+
             client = get_default_client()
         except Exception as e:
             _log.warning("LLM client unavailable — skipping judge stage: %s", e)
             return opportunities
 
     from src.settings import get_settings
+
     model_id = model or get_settings().model_haiku
 
     out: list[dict[str, Any]] = []
@@ -386,7 +404,9 @@ def llm_judge(
             out.append(op)
             continue
         verdict = _judge_one(
-            client, model_id, op,
+            client,
+            model_id,
+            op,
             target_role=target_role,
             target_seniority=target_seniority,
             target_modality=target_modality,
@@ -404,43 +424,55 @@ def llm_judge(
 
 # ── Pipeline orchestrator ──────────────────────────────────────────────────
 
-def run_pipeline(opportunities: list[dict[str, Any]], *,
-                 profile_summary: str,
-                 profile_keywords: list[str],
-                 target_role: str = "",
-                 target_seniority: str | None = None,
-                 target_modality: str | None = None,
-                 target_location: str = "",
-                 max_to_fetch: int = 30,
-                 top_k_after_rerank: int = 10,
-                 min_match: int = 0,
-                 enable_llm_judge: bool = True,
-                 embeddings_provider: str = "local",
-                 max_fails: int = 1) -> dict[str, Any]:
+
+def run_pipeline(
+    opportunities: list[dict[str, Any]],
+    *,
+    profile_summary: str,
+    profile_keywords: list[str],
+    target_role: str = "",
+    target_seniority: str | None = None,
+    target_modality: str | None = None,
+    target_location: str = "",
+    max_to_fetch: int = 30,
+    top_k_after_rerank: int = 10,
+    min_match: int = 0,
+    enable_llm_judge: bool = True,
+    embeddings_provider: str = "local",
+    max_fails: int = 1,
+) -> dict[str, Any]:
     stages: dict[str, int] = {"initial": len(opportunities)}
 
     with_bodies = fetch_jd_bodies(opportunities, max_to_fetch=max_to_fetch)
     stages["after_body_fetch"] = sum(1 for o in with_bodies if o.get("body"))
 
     ranked = rerank_by_embeddings(
-        with_bodies, profile_summary=profile_summary,
-        provider=embeddings_provider, top_k=top_k_after_rerank,
+        with_bodies,
+        profile_summary=profile_summary,
+        provider=embeddings_provider,
+        top_k=top_k_after_rerank,
     )
     stages["after_rerank"] = len(ranked)
 
     filtered = apply_min_match(
-        ranked, profile_keywords=profile_keywords, min_match=min_match,
+        ranked,
+        profile_keywords=profile_keywords,
+        min_match=min_match,
     )
     stages["after_min_match"] = len(filtered)
 
-    final = llm_judge(
-        filtered,
-        target_role=target_role,
-        target_seniority=target_seniority,
-        target_modality=target_modality,
-        target_location=target_location,
-        max_fails=max_fails,
-    ) if enable_llm_judge else filtered
+    final = (
+        llm_judge(
+            filtered,
+            target_role=target_role,
+            target_seniority=target_seniority,
+            target_modality=target_modality,
+            target_location=target_location,
+            max_fails=max_fails,
+        )
+        if enable_llm_judge
+        else filtered
+    )
     stages["final"] = len(final)
 
     return {"opportunities": final, "stages": stages}

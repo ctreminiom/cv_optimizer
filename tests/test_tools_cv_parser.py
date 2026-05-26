@@ -1,4 +1,5 @@
 """Tests for the CV parser tool."""
+
 from __future__ import annotations
 
 import json
@@ -7,7 +8,9 @@ from src.tools.cv_parser import parse_cv
 
 
 def test_parse_cv_unsupported_format() -> None:
-    import tempfile, os
+    import os
+    import tempfile
+
     with tempfile.NamedTemporaryFile(suffix=".xyz", delete=False) as f:
         f.write(b"data")
         path = f.name

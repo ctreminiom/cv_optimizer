@@ -18,6 +18,7 @@ because:
 The unit tests in test_guardrails.py call guardrail functions directly and
 will pass even when both problems are present.  These tests catch the gap.
 """
+
 from __future__ import annotations
 
 import inspect
@@ -87,15 +88,9 @@ class TestGuardrailCrewAICompat:
         """
         ann = inspect.signature(fn).return_annotation
         args = get_args(ann)
-        assert len(args) == 2, (
-            f"{fn.__name__} annotation has {len(args)} type arg(s); expected 2"
-        )
-        assert args[0] is bool, (
-            f"{fn.__name__} annotation arg[0] is {args[0]!r}; expected bool"
-        )
-        assert args[1] is Any, (
-            f"{fn.__name__} annotation arg[1] is {args[1]!r}; expected Any"
-        )
+        assert len(args) == 2, f"{fn.__name__} annotation has {len(args)} type arg(s); expected 2"
+        assert args[0] is bool, f"{fn.__name__} annotation arg[0] is {args[0]!r}; expected bool"
+        assert args[1] is Any, f"{fn.__name__} annotation arg[1] is {args[1]!r}; expected Any"
 
     def test_crewai_task_validator_accepts_guardrail(self, fn):
         """The actual CrewAI validator must not raise.

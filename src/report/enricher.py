@@ -6,6 +6,7 @@ builder (which assembles from task outputs) and the renderer (which writes).
 
 Extracted from main.py (SRP Phase 3c). No logic changes.
 """
+
 from __future__ import annotations
 
 import json
@@ -15,12 +16,20 @@ from typing import Any
 
 from src.pipeline.coercion import (
     as_dict as _as_dict,
+)
+from src.pipeline.coercion import (
     as_list as _as_list,
+)
+from src.pipeline.coercion import (
     as_list_of_dicts as _as_list_of_dicts,
 )
 from src.pipeline.scoring import (
     VERDICT_TIERS as _VERDICT_TIERS,
+)
+from src.pipeline.scoring import (
     decision_helper as _decision_helper,
+)
+from src.pipeline.scoring import (
     qualitative_match_by_category as _qualitative_match_by_category,
 )
 from src.presentation import warn as _warn
@@ -37,17 +46,17 @@ __all__ = [
 # ── Freshness patterns (used by posting_freshness) ────────────────────────────
 
 _FRESHNESS_BODY_PATTERNS = [
-    (re.compile(r"\bposted[:\s]+(\d+)\s+hour", re.I),   "hours"),
-    (re.compile(r"\bposted[:\s]+(\d+)\s+day",  re.I),   "days"),
-    (re.compile(r"\bposted[:\s]+(\d+)\s+week", re.I),   "weeks"),
-    (re.compile(r"\bposted[:\s]+(\d+)\s+month",re.I),   "months"),
-    (re.compile(r"\bhace\s+(\d+)\s+hora",      re.I),   "hours"),
-    (re.compile(r"\bhace\s+(\d+)\s+d[ií]a",    re.I),   "days"),
-    (re.compile(r"\bhace\s+(\d+)\s+semana",    re.I),   "weeks"),
-    (re.compile(r"\bhace\s+(\d+)\s+mes",       re.I),   "months"),
-    (re.compile(r"\b(\d+)\s+day(s)?\s+ago",    re.I),   "days"),
-    (re.compile(r"\b(\d+)\s+week(s)?\s+ago",   re.I),   "weeks"),
-    (re.compile(r"\b(\d+)\s+month(s)?\s+ago",  re.I),   "months"),
+    (re.compile(r"\bposted[:\s]+(\d+)\s+hour", re.I), "hours"),
+    (re.compile(r"\bposted[:\s]+(\d+)\s+day", re.I), "days"),
+    (re.compile(r"\bposted[:\s]+(\d+)\s+week", re.I), "weeks"),
+    (re.compile(r"\bposted[:\s]+(\d+)\s+month", re.I), "months"),
+    (re.compile(r"\bhace\s+(\d+)\s+hora", re.I), "hours"),
+    (re.compile(r"\bhace\s+(\d+)\s+d[ií]a", re.I), "days"),
+    (re.compile(r"\bhace\s+(\d+)\s+semana", re.I), "weeks"),
+    (re.compile(r"\bhace\s+(\d+)\s+mes", re.I), "months"),
+    (re.compile(r"\b(\d+)\s+day(s)?\s+ago", re.I), "days"),
+    (re.compile(r"\b(\d+)\s+week(s)?\s+ago", re.I), "weeks"),
+    (re.compile(r"\b(\d+)\s+month(s)?\s+ago", re.I), "months"),
 ]
 
 _FRESHNESS_DATE_PATTERN = re.compile(
@@ -59,12 +68,14 @@ _FRESHNESS_DATE_PATTERN = re.compile(
 
 # ── posting_freshness ─────────────────────────────────────────────────────────
 
+
 def posting_freshness(job_path: Path) -> str:
     """Return a freshness/urgency line. §3.6 — prefers a posted/published
     date parsed from the JD body when present (LinkedIn / Indeed /
     Computrabajo all embed one); falls back to file mtime only when the
     body is silent."""
     import datetime as _dt
+
     age_days: int | None = None
     source = "file mtime"
     try:
@@ -88,9 +99,7 @@ def posting_freshness(job_path: Path) -> str:
                 m = _FRESHNESS_DATE_PATTERN.search(text)
                 if m:
                     try:
-                        posted = _dt.date(int(m.group(1)),
-                                            int(m.group(2)),
-                                            int(m.group(3)))
+                        posted = _dt.date(int(m.group(1)), int(m.group(2)), int(m.group(3)))
                         age_days = (_dt.date.today() - posted).days
                         source = "posting body (date)"
                     except Exception:
@@ -114,6 +123,7 @@ def posting_freshness(job_path: Path) -> str:
 
 # ── decision_helper_with_opus ─────────────────────────────────────────────────
 
+
 def decision_helper_with_opus(report: dict) -> dict:
     """Opus 4.7 version of `decision_helper`. Produces a precise, role-and-
     candidate-specific 'Should you apply?' read: one of the four standard
@@ -125,6 +135,7 @@ def decision_helper_with_opus(report: dict) -> dict:
     """
     try:
         from src.llm.client import get_default_client
+
         _llm = get_default_client()
     except Exception:
         return _decision_helper(report)
@@ -138,12 +149,14 @@ def decision_helper_with_opus(report: dict) -> dict:
     evs = _as_list_of_dicts(report.get("evaluations"))
     reviewer_bundle = []
     for ev in evs:
-        reviewer_bundle.append({
-            "reviewer": ev.get("agent_role", ""),
-            "strengths": [s for s in (ev.get("strengths") or []) if isinstance(s, str)][:8],
-            "weaknesses": [w for w in (ev.get("weaknesses") or []) if isinstance(w, str)][:8],
-            "red_flags": [r for r in (ev.get("red_flags") or []) if isinstance(r, str)][:6],
-        })
+        reviewer_bundle.append(
+            {
+                "reviewer": ev.get("agent_role", ""),
+                "strengths": [s for s in (ev.get("strengths") or []) if isinstance(s, str)][:8],
+                "weaknesses": [w for w in (ev.get("weaknesses") or []) if isinstance(w, str)][:8],
+                "red_flags": [r for r in (ev.get("red_flags") or []) if isinstance(r, str)][:6],
+            }
+        )
 
     job_ctx = {
         "title": job.get("title", ""),
@@ -155,13 +168,13 @@ def decision_helper_with_opus(report: dict) -> dict:
     }
     gap_ctx = {
         "critical_gaps": _as_list(gap.get("critical_gaps"))[:10],
-        "minor_gaps":    _as_list(gap.get("minor_gaps"))[:6],
+        "minor_gaps": _as_list(gap.get("minor_gaps"))[:6],
     }
     ats_ctx = {
         "missing_keywords": _as_list(ats.get("missing_keywords"))[:12],
     }
     cf_ctx = {
-        "common_strengths":  _as_list(cf.get("common_strengths"))[:6],
+        "common_strengths": _as_list(cf.get("common_strengths"))[:6],
         "common_weaknesses": _as_list(cf.get("common_weaknesses"))[:6],
     }
     salary_ctx = {
@@ -212,6 +225,7 @@ Return ONLY a JSON object (no markdown fences, no preamble) with this exact sche
 }}"""
 
     from src.settings import get_settings as _gs
+
     model_id = _gs().model_opus
     try:
         content = _llm.complete(
@@ -252,8 +266,10 @@ Return ONLY a JSON object (no markdown fences, no preamble) with this exact sche
 
 # ── classify_match_with_opus ──────────────────────────────────────────────────
 
-def classify_match_with_opus(evaluations: Any, job: dict,
-                              ats_report: dict, gap_analysis: dict) -> list[dict]:
+
+def classify_match_with_opus(
+    evaluations: Any, job: dict, ats_report: dict, gap_analysis: dict
+) -> list[dict]:
     """Use Opus 4.7 to synthesize all reviewer feedback into a meaningful
     per-category fit assessment. Categories emerge from the actual evidence
     in the evaluations (Technical Skills, Domain Experience, Leadership,
@@ -265,6 +281,7 @@ def classify_match_with_opus(evaluations: Any, job: dict,
     """
     try:
         from src.llm.client import get_default_client
+
         _llm = get_default_client()
     except Exception:
         return _qualitative_match_by_category(evaluations)
@@ -275,12 +292,14 @@ def classify_match_with_opus(evaluations: Any, job: dict,
 
     reviewer_bundle = []
     for ev in evs:
-        reviewer_bundle.append({
-            "reviewer": ev.get("agent_role", ""),
-            "strengths": [s for s in (ev.get("strengths") or []) if isinstance(s, str)][:12],
-            "weaknesses": [w for w in (ev.get("weaknesses") or []) if isinstance(w, str)][:12],
-            "red_flags": [r for r in (ev.get("red_flags") or []) if isinstance(r, str)][:6],
-        })
+        reviewer_bundle.append(
+            {
+                "reviewer": ev.get("agent_role", ""),
+                "strengths": [s for s in (ev.get("strengths") or []) if isinstance(s, str)][:12],
+                "weaknesses": [w for w in (ev.get("weaknesses") or []) if isinstance(w, str)][:12],
+                "red_flags": [r for r in (ev.get("red_flags") or []) if isinstance(r, str)][:6],
+            }
+        )
 
     job_ctx = {
         "title": job.get("title", ""),
@@ -289,12 +308,12 @@ def classify_match_with_opus(evaluations: Any, job: dict,
         "role_type": job.get("role_type", ""),
     }
     ats_ctx = {
-        "missing_keywords":  _as_list(ats_report.get("missing_keywords"))[:15],
+        "missing_keywords": _as_list(ats_report.get("missing_keywords"))[:15],
         "overused_keywords": _as_list(ats_report.get("overused_keywords"))[:6],
     }
     gap_ctx = {
-        "critical_gaps":          _as_list(gap_analysis.get("critical_gaps"))[:8],
-        "framing_opportunities":  _as_list(gap_analysis.get("framing_opportunities"))[:5],
+        "critical_gaps": _as_list(gap_analysis.get("critical_gaps"))[:8],
+        "framing_opportunities": _as_list(gap_analysis.get("framing_opportunities"))[:5],
     }
 
     prompt = f"""You are a senior talent assessor synthesizing multiple reviewer perspectives into a fit assessment broken down by meaningful match categories.
@@ -343,6 +362,7 @@ Return ONLY a JSON array (no markdown fences, no preamble, no trailing commentar
 ]"""
 
     from src.settings import get_settings as _gs
+
     model_id = _gs().model_opus
     try:
         content = _llm.complete(
@@ -366,12 +386,14 @@ Return ONLY a JSON array (no markdown fences, no preamble, no trailing commentar
                 band = (r.get("band") or "").strip()
                 signal = (r.get("signal") or "").strip()
                 if cat and band:
-                    cleaned.append({
-                        "category": cat,
-                        "band": band,
-                        "signal": signal[:160],
-                        "reviewer": "consensus",
-                    })
+                    cleaned.append(
+                        {
+                            "category": cat,
+                            "band": band,
+                            "signal": signal[:160],
+                            "reviewer": "consensus",
+                        }
+                    )
             if cleaned:
                 return cleaned
     except Exception as e:
@@ -381,6 +403,7 @@ Return ONLY a JSON array (no markdown fences, no preamble, no trailing commentar
 
 # ── prescreen_with_haiku ──────────────────────────────────────────────────────
 
+
 def prescreen_with_haiku(cv_path: Path, job_path: Path) -> dict:
     """Cheap one-shot pre-screen call. Returns:
         {"proceed": bool, "reason": str, "verdict": str}
@@ -388,10 +411,14 @@ def prescreen_with_haiku(cv_path: Path, job_path: Path) -> dict:
     errors. §3.1."""
     try:
         from src.llm.client import get_default_client
+
         _llm = get_default_client()
     except Exception:
-        return {"proceed": True, "reason": "LLM client unavailable — skipping prescreen",
-                "verdict": "unknown"}
+        return {
+            "proceed": True,
+            "reason": "LLM client unavailable — skipping prescreen",
+            "verdict": "unknown",
+        }
 
     def _read_text(p: Path, limit: int = 4000) -> str:
         try:
@@ -400,6 +427,7 @@ def prescreen_with_haiku(cv_path: Path, job_path: Path) -> dict:
             if p.suffix.lower() == ".pdf":
                 try:
                     from pypdf import PdfReader
+
                     pages = PdfReader(str(p)).pages[:2]
                     return "\n".join(pg.extract_text() or "" for pg in pages)[:limit]
                 except Exception:
@@ -407,6 +435,7 @@ def prescreen_with_haiku(cv_path: Path, job_path: Path) -> dict:
             if p.suffix.lower() == ".docx":
                 try:
                     from docx import Document
+
                     doc = Document(str(p))
                     return "\n".join(par.text for par in doc.paragraphs[:80])[:limit]
                 except Exception:
@@ -418,8 +447,7 @@ def prescreen_with_haiku(cv_path: Path, job_path: Path) -> dict:
     cv_text = _read_text(cv_path, 3500)
     jd_text = _read_text(job_path, 4000)
     if not jd_text:
-        return {"proceed": True, "reason": "could not extract JD text",
-                "verdict": "unknown"}
+        return {"proceed": True, "reason": "could not extract JD text", "verdict": "unknown"}
 
     prompt = (
         "You are a strict no-fluff hiring screener. Given the candidate's CV "
@@ -435,6 +463,7 @@ def prescreen_with_haiku(cv_path: Path, job_path: Path) -> dict:
         f"=== Job Description ===\n{jd_text}\n"
     )
     from src.settings import get_settings as _gs
+
     try:
         content = _llm.complete(
             model=_gs().model_haiku,
@@ -447,16 +476,18 @@ def prescreen_with_haiku(cv_path: Path, job_path: Path) -> dict:
         data = json.loads(content)
         verdict = (data.get("verdict") or "").lower().strip()
         reason = (data.get("reason") or "").strip()
-        return {"proceed": verdict != "skip",
-                "verdict": verdict or "unknown",
-                "reason": reason or "—"}
+        return {
+            "proceed": verdict != "skip",
+            "verdict": verdict or "unknown",
+            "reason": reason or "—",
+        }
     except Exception as e:
         _warn(f"Prescreen call failed: {e} — proceeding with full run")
-        return {"proceed": True, "reason": f"prescreen error: {e}",
-                "verdict": "unknown"}
+        return {"proceed": True, "reason": f"prescreen error: {e}", "verdict": "unknown"}
 
 
 # ── copy_job_source_as_pdf ────────────────────────────────────────────────────
+
 
 def copy_job_source_as_pdf(job_path: Path, target_dir: Path) -> Path | None:
     """Place a copy of the source job posting inside `target_dir` as a PDF.
@@ -469,6 +500,7 @@ def copy_job_source_as_pdf(job_path: Path, target_dir: Path) -> Path | None:
     Returns the path written, or None on failure.
     """
     import shutil
+
     try:
         if not (job_path.exists() and job_path.is_file()):
             return None
@@ -482,6 +514,7 @@ def copy_job_source_as_pdf(job_path: Path, target_dir: Path) -> Path | None:
             text = job_path.read_text(encoding="utf-8", errors="ignore")
             md_text = text if ext == ".md" else f"```\n{text}\n```"
             from src.pdf_renderer import write_pdf_from_markdown
+
             write_pdf_from_markdown(md_text, dest)
             return dest
         dest = target_dir / job_path.name
@@ -494,14 +527,17 @@ def copy_job_source_as_pdf(job_path: Path, target_dir: Path) -> Path | None:
 
 # ── write_prescreen_stub ──────────────────────────────────────────────────────
 
-def write_prescreen_stub(target_dir: Path, job_path: Path,
-                          cv_path: Path, prescreen: dict) -> Path | None:
+
+def write_prescreen_stub(
+    target_dir: Path, job_path: Path, cv_path: Path, prescreen: dict
+) -> Path | None:
     """Write a tiny report.md for jobs the prescreen skipped — keeps the
     output tree complete without spending the full crew budget. §3.1."""
     try:
         target_dir.mkdir(parents=True, exist_ok=True)
         md_path = target_dir / "report.md"
         import datetime as _dt
+
         ts = _dt.datetime.now().strftime("%Y-%m-%d %H:%M")
         body = (
             f"# Resume Recommendation Report\n"
@@ -521,6 +557,7 @@ def write_prescreen_stub(target_dir: Path, job_path: Path,
         pdf_path = target_dir / "report.pdf"
         try:
             from src.pdf_renderer import write_pdf_from_markdown
+
             write_pdf_from_markdown(body, pdf_path)
             out_path = pdf_path
         except Exception as pdf_e:

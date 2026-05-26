@@ -1,4 +1,5 @@
 """Job search tools — query public job boards and score results."""
+
 from __future__ import annotations
 
 import hashlib
@@ -12,15 +13,18 @@ from typing import Any
 
 from crewai.tools import tool
 
-from src.constants import DEFAULT_MODEL_HAIKU
-
 __all__ = ["search_jobs"]
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 
-_DEFAULT_NEGATIVE_KEYWORDS: frozenset[str] = frozenset({
-    "internship", "unpaid", "volunteer", "commission only",
-})
+_DEFAULT_NEGATIVE_KEYWORDS: frozenset[str] = frozenset(
+    {
+        "internship",
+        "unpaid",
+        "volunteer",
+        "commission only",
+    }
+)
 
 
 def _normalize_for_dedupe(s: str) -> str:
@@ -41,11 +45,13 @@ def _is_aggregator(item: dict[str, Any]) -> bool:
 
 
 def _matches_negative(item: dict[str, Any], exclude: list[str]) -> bool:
-    haystack = " ".join([
-        item.get("title", ""),
-        item.get("snippet", ""),
-        item.get("company", ""),
-    ]).lower()
+    haystack = " ".join(
+        [
+            item.get("title", ""),
+            item.get("snippet", ""),
+            item.get("company", ""),
+        ]
+    ).lower()
     return any(term.lower() in haystack for term in exclude if term)
 
 
@@ -59,8 +65,9 @@ def _location_matches(item: dict[str, Any], location: str) -> bool:
     return needle in item_loc or any(part.strip() in item_loc for part in needle.split(","))
 
 
-def _expand_with_synonyms(role_keywords: list[str],
-                          synonyms_map: dict[str, list[str]]) -> list[str]:
+def _expand_with_synonyms(
+    role_keywords: list[str], synonyms_map: dict[str, list[str]]
+) -> list[str]:
     expanded: list[str] = list(role_keywords)
     seen = {t.lower() for t in expanded}
     for canonical, alts in synonyms_map.items():
@@ -73,8 +80,7 @@ def _expand_with_synonyms(role_keywords: list[str],
     return expanded
 
 
-def _resolve_seniority_levels(seniority_levels: Any,
-                              seniority: str | None) -> list[str | None]:
+def _resolve_seniority_levels(seniority_levels: Any, seniority: str | None) -> list[str | None]:
     if seniority_levels:
         if isinstance(seniority_levels, list):
             return [s for s in seniority_levels if s]
@@ -82,10 +88,9 @@ def _resolve_seniority_levels(seniority_levels: Any,
     return [seniority] if seniority else [None]
 
 
-def _build_search_query(role_terms: list[str], *,
-                        level: str | None,
-                        extra_keywords: list[str],
-                        modality: str | None) -> str:
+def _build_search_query(
+    role_terms: list[str], *, level: str | None, extra_keywords: list[str], modality: str | None
+) -> str:
     query = " ".join(role_terms[:5])
     if level:
         query = f"{level} {query}".strip()
@@ -96,12 +101,15 @@ def _build_search_query(role_terms: list[str], *,
     return query
 
 
-def _filter_and_dedupe(results: list[dict[str, Any]], *,
-                       exclude_keywords: list[str],
-                       exact_location: bool,
-                       location: str,
-                       contract_type: str | None,
-                       max_results: int) -> list[dict[str, Any]]:
+def _filter_and_dedupe(
+    results: list[dict[str, Any]],
+    *,
+    exclude_keywords: list[str],
+    exact_location: bool,
+    location: str,
+    contract_type: str | None,
+    max_results: int,
+) -> list[dict[str, Any]]:
     seen_url: set = set()
     seen_dedupe: set = set()
     out: list[dict[str, Any]] = []
@@ -172,9 +180,7 @@ def search_jobs(input_json: str) -> str:
     include_sources = params.get("include_sources")
 
     max_age_days = params.get("max_age_days")
-    exclude_keywords = list(_DEFAULT_NEGATIVE_KEYWORDS) + list(
-        params.get("exclude_keywords") or []
-    )
+    exclude_keywords = list(_DEFAULT_NEGATIVE_KEYWORDS) + list(params.get("exclude_keywords") or [])
     exact_location = bool(params.get("exact_location", False))
     synonyms_map: dict[str, list[str]] = params.get("synonyms") or {}
 
@@ -187,15 +193,16 @@ def search_jobs(input_json: str) -> str:
 
     for level in levels_to_search:
         query = _build_search_query(
-            expanded_terms, level=level,
-            extra_keywords=extra_keywords, modality=modality,
+            expanded_terms,
+            level=level,
+            extra_keywords=extra_keywords,
+            modality=modality,
         )
         provider_location = f'"{location}"' if exact_location else location
 
         # Tavily covers the deep web; Serper covers Google Jobs vertical.
         if os.getenv("TAVILY_API_KEY"):
-            r, q = _search_tavily(query, provider_location, max_results,
-                                   max_age_days=max_age_days)
+            r, q = _search_tavily(query, provider_location, max_results, max_age_days=max_age_days)
             for item in r:
                 item.setdefault("seniority", level)
             results.extend(r)
@@ -212,8 +219,11 @@ def search_jobs(input_json: str) -> str:
             queries_used.extend(q)
 
         deeplinks, dl_queries = _build_deep_links(
-            query, location, modality=modality,
-            include_sources=include_sources, seniority=level,
+            query,
+            location,
+            modality=modality,
+            include_sources=include_sources,
+            seniority=level,
         )
         results.extend(deeplinks)
         queries_used.extend(dl_queries)
@@ -230,31 +240,46 @@ def search_jobs(input_json: str) -> str:
         max_results=max_results,
     )
 
-    return json.dumps({
-        "total_found": len(unique),
-        "opportunities": unique,
-        "sources_used": sources_used,
-        "search_queries_used": queries_used,
-        "filters_applied": {
-            "exclude_keywords": exclude_keywords,
-            "exact_location": exact_location,
-            "max_age_days": max_age_days,
-            "synonyms_expanded": len(expanded_terms) - len(role_keywords),
-        },
-    })
+    return json.dumps(
+        {
+            "total_found": len(unique),
+            "opportunities": unique,
+            "sources_used": sources_used,
+            "search_queries_used": queries_used,
+            "filters_applied": {
+                "exclude_keywords": exclude_keywords,
+                "exact_location": exact_location,
+                "max_age_days": max_age_days,
+                "synonyms_expanded": len(expanded_terms) - len(role_keywords),
+            },
+        }
+    )
 
 
 _ALL_SOURCES = [
-    "linkedin", "indeed_cr", "glassdoor", "wellfound", "remoteok",
-    "computrabajo", "hireline", "getonboard", "weworkremotely",
-    "tecoloco", "encuentra24", "dice", "ziprecruiter",
+    "linkedin",
+    "indeed_cr",
+    "glassdoor",
+    "wellfound",
+    "remoteok",
+    "computrabajo",
+    "hireline",
+    "getonboard",
+    "weworkremotely",
+    "tecoloco",
+    "encuentra24",
+    "dice",
+    "ziprecruiter",
 ]
 
 
-def _build_deep_links(query: str, location: str,
-                      modality: str | None = None,
-                      include_sources: list[str] | None = None,
-                      seniority: str | None = None) -> tuple:
+def _build_deep_links(
+    query: str,
+    location: str,
+    modality: str | None = None,
+    include_sources: list[str] | None = None,
+    seniority: str | None = None,
+) -> tuple:
     """Generate absolute deep-link URLs to 13+ job boards.
 
     include_sources: if set, only emit boards whose source key is in the list.
@@ -262,7 +287,6 @@ def _build_deep_links(query: str, location: str,
     """
     q_url = urllib.parse.quote_plus(query)
     loc_url = urllib.parse.quote_plus(location)
-    remote_q = urllib.parse.quote_plus(f"remote {query}")
     is_remote = modality == "remote"
 
     def _want(src: str) -> bool:
@@ -280,188 +304,225 @@ def _build_deep_links(query: str, location: str,
     if _want("linkedin"):
         queries.append(f"site:linkedin.com {query} {location}")
         remote_flag = "&f_WT=2" if is_remote else ""
-        links.append(_link(
-            title=f"LinkedIn — {query} in {location}",
-            company="(multiple)",
-            location=location,
-            modality="remote" if is_remote else None,
-            snippet="Browse all matching openings on LinkedIn Jobs.",
-            url=f"https://www.linkedin.com/jobs/search/?keywords={q_url}&location={loc_url}{remote_flag}",
-            source="linkedin",
-            link_type="search_url",
-        ))
+        links.append(
+            _link(
+                title=f"LinkedIn — {query} in {location}",
+                company="(multiple)",
+                location=location,
+                modality="remote" if is_remote else None,
+                snippet="Browse all matching openings on LinkedIn Jobs.",
+                url=f"https://www.linkedin.com/jobs/search/?keywords={q_url}&location={loc_url}{remote_flag}",
+                source="linkedin",
+                link_type="search_url",
+            )
+        )
 
     if _want("indeed_cr"):
         queries.append(f"site:cr.indeed.com {query}")
         remote_flag = "&remotejob=1" if is_remote else ""
-        links.append(_link(
-            title=f"Indeed CR — {query}",
-            company="(multiple)",
-            location=location,
-            modality="remote" if is_remote else None,
-            snippet="Browse all matching openings on Indeed Costa Rica.",
-            url=f"https://cr.indeed.com/jobs?q={q_url}&l={loc_url}{remote_flag}",
-            source="indeed_cr",
-            link_type="search_url",
-        ))
+        links.append(
+            _link(
+                title=f"Indeed CR — {query}",
+                company="(multiple)",
+                location=location,
+                modality="remote" if is_remote else None,
+                snippet="Browse all matching openings on Indeed Costa Rica.",
+                url=f"https://cr.indeed.com/jobs?q={q_url}&l={loc_url}{remote_flag}",
+                source="indeed_cr",
+                link_type="search_url",
+            )
+        )
 
     if _want("glassdoor"):
         queries.append(f"site:glassdoor.com {query} {location}")
-        links.append(_link(
-            title=f"Glassdoor — {query} in {location}",
-            company="(multiple)",
-            location=location,
-            modality=None,
-            snippet="Browse openings with company reviews and salary data on Glassdoor.",
-            url=f"https://www.glassdoor.com/Job/jobs.htm?sc.keyword={q_url}&locT=N&locId=0",
-            source="glassdoor",
-            link_type="search_url",
-        ))
+        links.append(
+            _link(
+                title=f"Glassdoor — {query} in {location}",
+                company="(multiple)",
+                location=location,
+                modality=None,
+                snippet="Browse openings with company reviews and salary data on Glassdoor.",
+                url=f"https://www.glassdoor.com/Job/jobs.htm?sc.keyword={q_url}&locT=N&locId=0",
+                source="glassdoor",
+                link_type="search_url",
+            )
+        )
 
     if _want("wellfound"):
         queries.append(f"site:wellfound.com {query}")
-        links.append(_link(
-            title=f"Wellfound (AngelList) — {query}",
-            company="(multiple)",
-            location=location,
-            modality="remote" if is_remote else None,
-            snippet="Startup & tech jobs on Wellfound (formerly AngelList Talent).",
-            url=f"https://wellfound.com/jobs?q={q_url}&l={loc_url}",
-            source="wellfound",
-            link_type="search_url",
-        ))
+        links.append(
+            _link(
+                title=f"Wellfound (AngelList) — {query}",
+                company="(multiple)",
+                location=location,
+                modality="remote" if is_remote else None,
+                snippet="Startup & tech jobs on Wellfound (formerly AngelList Talent).",
+                url=f"https://wellfound.com/jobs?q={q_url}&l={loc_url}",
+                source="wellfound",
+                link_type="search_url",
+            )
+        )
 
     if _want("remoteok"):
         queries.append(f"site:remoteok.com {query}")
-        links.append(_link(
-            title=f"RemoteOK — {query} (remote)",
-            company="(multiple)",
-            location="Remote",
-            modality="remote",
-            snippet="Curated remote-only tech and knowledge-worker jobs on RemoteOK.",
-            url=f"https://remoteok.com/remote-{q_url.replace('+', '-')}-jobs",
-            source="remoteok",
-            link_type="search_url",
-        ))
+        links.append(
+            _link(
+                title=f"RemoteOK — {query} (remote)",
+                company="(multiple)",
+                location="Remote",
+                modality="remote",
+                snippet="Curated remote-only tech and knowledge-worker jobs on RemoteOK.",
+                url=f"https://remoteok.com/remote-{q_url.replace('+', '-')}-jobs",
+                source="remoteok",
+                link_type="search_url",
+            )
+        )
 
     if _want("computrabajo"):
         queries.append(f"site:computrabajo.cr {query}")
-        links.append(_link(
-            title=f"Computrabajo CR — {query}",
-            company="(multiple)",
-            location=location,
-            modality=None,
-            snippet="Costa Rica's largest Spanish-language job board.",
-            url=f"https://www.computrabajo.cr/trabajo-de-{q_url.replace('+', '-')}",
-            source="computrabajo",
-            link_type="search_url",
-        ))
+        links.append(
+            _link(
+                title=f"Computrabajo CR — {query}",
+                company="(multiple)",
+                location=location,
+                modality=None,
+                snippet="Costa Rica's largest Spanish-language job board.",
+                url=f"https://www.computrabajo.cr/trabajo-de-{q_url.replace('+', '-')}",
+                source="computrabajo",
+                link_type="search_url",
+            )
+        )
 
     if _want("hireline"):
         queries.append(f"site:hireline.io {query}")
-        links.append(_link(
-            title=f"Hireline — {query}",
-            company="(multiple)",
-            location=location,
-            modality="remote" if is_remote else None,
-            snippet="Latin America-focused remote tech jobs on Hireline.",
-            url=f"https://hireline.io/jobs?search={q_url}",
-            source="hireline",
-            link_type="search_url",
-        ))
+        links.append(
+            _link(
+                title=f"Hireline — {query}",
+                company="(multiple)",
+                location=location,
+                modality="remote" if is_remote else None,
+                snippet="Latin America-focused remote tech jobs on Hireline.",
+                url=f"https://hireline.io/jobs?search={q_url}",
+                source="hireline",
+                link_type="search_url",
+            )
+        )
 
     if _want("getonboard"):
         queries.append(f"site:getonbrd.com {query}")
-        links.append(_link(
-            title=f"Get on Board — {query}",
-            company="(multiple)",
-            location=location,
-            modality="remote" if is_remote else None,
-            snippet="Latin American remote-friendly tech jobs on Get on Board.",
-            url=f"https://www.getonbrd.com/jobs?query={q_url}",
-            source="getonboard",
-            link_type="search_url",
-        ))
+        links.append(
+            _link(
+                title=f"Get on Board — {query}",
+                company="(multiple)",
+                location=location,
+                modality="remote" if is_remote else None,
+                snippet="Latin American remote-friendly tech jobs on Get on Board.",
+                url=f"https://www.getonbrd.com/jobs?query={q_url}",
+                source="getonboard",
+                link_type="search_url",
+            )
+        )
 
     if _want("weworkremotely"):
         queries.append(f"site:weworkremotely.com {query}")
-        links.append(_link(
-            title=f"WeWorkRemotely — {query} (remote)",
-            company="(multiple)",
-            location="Remote",
-            modality="remote",
-            snippet="One of the largest remote-only job boards. Tech, design, and more.",
-            url=f"https://weworkremotely.com/remote-jobs/search?term={q_url}",
-            source="weworkremotely",
-            link_type="search_url",
-        ))
+        links.append(
+            _link(
+                title=f"WeWorkRemotely — {query} (remote)",
+                company="(multiple)",
+                location="Remote",
+                modality="remote",
+                snippet="One of the largest remote-only job boards. Tech, design, and more.",
+                url=f"https://weworkremotely.com/remote-jobs/search?term={q_url}",
+                source="weworkremotely",
+                link_type="search_url",
+            )
+        )
 
     if _want("tecoloco"):
         queries.append(f"site:tecoloco.com {query} Costa Rica")
-        links.append(_link(
-            title=f"Tecoloco CR — {query}",
-            company="(multiple)",
-            location=location,
-            modality=None,
-            snippet="Central-American job board with strong Costa Rica presence.",
-            url=f"https://www.tecoloco.com/bolsa-de-trabajo/costa-rica/?buscar={q_url}",
-            source="tecoloco",
-            link_type="search_url",
-        ))
+        links.append(
+            _link(
+                title=f"Tecoloco CR — {query}",
+                company="(multiple)",
+                location=location,
+                modality=None,
+                snippet="Central-American job board with strong Costa Rica presence.",
+                url=f"https://www.tecoloco.com/bolsa-de-trabajo/costa-rica/?buscar={q_url}",
+                source="tecoloco",
+                link_type="search_url",
+            )
+        )
 
     if _want("encuentra24"):
         queries.append(f"site:encuentra24.com {query}")
-        links.append(_link(
-            title=f"Encuentra24 — {query}",
-            company="(multiple)",
-            location=location,
-            modality=None,
-            snippet="Central American classifieds and job board.",
-            url=f"https://www.encuentra24.com/costa-rica-es/empleos?q={q_url}",
-            source="encuentra24",
-            link_type="search_url",
-        ))
+        links.append(
+            _link(
+                title=f"Encuentra24 — {query}",
+                company="(multiple)",
+                location=location,
+                modality=None,
+                snippet="Central American classifieds and job board.",
+                url=f"https://www.encuentra24.com/costa-rica-es/empleos?q={q_url}",
+                source="encuentra24",
+                link_type="search_url",
+            )
+        )
 
     if _want("dice"):
         queries.append(f"site:dice.com {query}")
-        links.append(_link(
-            title=f"Dice — {query} (tech)",
-            company="(multiple)",
-            location=location,
-            modality="remote" if is_remote else None,
-            snippet="Tech-specialist job board popular in the US/LATAM remote market.",
-            url=f"https://www.dice.com/jobs?q={q_url}&l={loc_url}{'&remote=true' if is_remote else ''}",
-            source="dice",
-            link_type="search_url",
-        ))
+        links.append(
+            _link(
+                title=f"Dice — {query} (tech)",
+                company="(multiple)",
+                location=location,
+                modality="remote" if is_remote else None,
+                snippet="Tech-specialist job board popular in the US/LATAM remote market.",
+                url=f"https://www.dice.com/jobs?q={q_url}&l={loc_url}{'&remote=true' if is_remote else ''}",
+                source="dice",
+                link_type="search_url",
+            )
+        )
 
     if _want("ziprecruiter"):
         queries.append(f"site:ziprecruiter.com {query}")
-        links.append(_link(
-            title=f"ZipRecruiter — {query}",
-            company="(multiple)",
-            location=location,
-            modality=None,
-            snippet="Broad-market job board aggregating millions of US/remote postings.",
-            url=f"https://www.ziprecruiter.com/candidate/search?search={q_url}&location={loc_url}",
-            source="ziprecruiter",
-            link_type="search_url",
-        ))
+        links.append(
+            _link(
+                title=f"ZipRecruiter — {query}",
+                company="(multiple)",
+                location=location,
+                modality=None,
+                snippet="Broad-market job board aggregating millions of US/remote postings.",
+                url=f"https://www.ziprecruiter.com/candidate/search?search={q_url}&location={loc_url}",
+                source="ziprecruiter",
+                link_type="search_url",
+            )
+        )
 
     return links, queries
 
 
-def _retry_http_post(url: str, *, json_body: dict, headers: dict | None = None,
-                     timeout: int = 30, max_attempts: int = 3) -> "Any":
+def _retry_http_post(
+    url: str,
+    *,
+    json_body: dict,
+    headers: dict | None = None,
+    timeout: int = 30,
+    max_attempts: int = 3,
+) -> Any:
     """POST with exponential-backoff retry on 429/5xx/timeout.
 
     Uses tenacity when available; degrades to a simple manual retry loop
     so the tool still works in minimal environments.
     """
     import requests as _rq
+
     try:
-        from tenacity import (retry, stop_after_attempt, wait_exponential_jitter,
-                              retry_if_exception_type)
+        from tenacity import (
+            retry,
+            retry_if_exception_type,
+            stop_after_attempt,
+            wait_exponential_jitter,
+        )
     except ImportError:
         # Fallback: simple loop, same exit semantics
         last_exc: Exception | None = None
@@ -475,9 +536,9 @@ def _retry_http_post(url: str, *, json_body: dict, headers: dict | None = None,
             except (_rq.HTTPError, _rq.Timeout, _rq.ConnectionError) as e:
                 last_exc = e
                 if attempt < max_attempts - 1:
-                    time.sleep(2 ** attempt + 0.5)
+                    time.sleep(2**attempt + 0.5)
         if last_exc:
-            raise last_exc
+            raise last_exc from last_exc
         return None
 
     @retry(
@@ -486,7 +547,7 @@ def _retry_http_post(url: str, *, json_body: dict, headers: dict | None = None,
         retry=retry_if_exception_type((_rq.HTTPError, _rq.Timeout, _rq.ConnectionError)),
         reraise=True,
     )
-    def _do() -> "Any":
+    def _do() -> Any:
         r = _rq.post(url, json=json_body, headers=headers or {}, timeout=timeout)
         if r.status_code == 429 or r.status_code >= 500:
             raise _rq.HTTPError(f"retryable status {r.status_code}")
@@ -496,8 +557,9 @@ def _retry_http_post(url: str, *, json_body: dict, headers: dict | None = None,
     return _do()
 
 
-def _search_tavily(query: str, location: str, max_results: int,
-                   max_age_days: int | None = None) -> tuple:
+def _search_tavily(
+    query: str, location: str, max_results: int, max_age_days: int | None = None
+) -> tuple:
     """Real search via Tavily (https://tavily.com)."""
     api_key = os.getenv("TAVILY_API_KEY")
     if not api_key:
@@ -555,21 +617,24 @@ def _search_tavily(query: str, location: str, max_results: int,
             if domain in url:
                 source = src
                 break
-        out.append({
-            "title": item.get("title", ""),
-            "company": "(see posting)",
-            "location": location,
-            "modality": None,
-            "snippet": (item.get("content") or "")[:300],
-            "url": url,
-            "source": source,
-            "link_type": "direct_listing",
-        })
+        out.append(
+            {
+                "title": item.get("title", ""),
+                "company": "(see posting)",
+                "location": location,
+                "modality": None,
+                "snippet": (item.get("content") or "")[:300],
+                "url": url,
+                "source": source,
+                "link_type": "direct_listing",
+            }
+        )
     return out, [full_query]
 
 
-def _search_serper(query: str, location: str, max_results: int,
-                   max_age_days: int | None = None) -> tuple:
+def _search_serper(
+    query: str, location: str, max_results: int, max_age_days: int | None = None
+) -> tuple:
     """Real search via Serper (https://serper.dev)."""
     api_key = os.getenv("SERPER_API_KEY")
     if not api_key:
@@ -600,16 +665,18 @@ def _search_serper(query: str, location: str, max_results: int,
 
     out: list[dict[str, Any]] = []
     for item in data.get("jobs", []):
-        out.append({
-            "title": item.get("title", ""),
-            "company": item.get("company", "(see posting)"),
-            "location": item.get("location", location),
-            "modality": None,
-            "posted_date": item.get("detected_extensions", {}).get("posted_at")
-                           or item.get("postedAt"),
-            "snippet": (item.get("description") or "")[:300],
-            "url": item.get("link") or item.get("share_link") or "",
-            "source": "serper_jobs",
-            "link_type": "direct_listing",
-        })
+        out.append(
+            {
+                "title": item.get("title", ""),
+                "company": item.get("company", "(see posting)"),
+                "location": item.get("location", location),
+                "modality": None,
+                "posted_date": item.get("detected_extensions", {}).get("posted_at")
+                or item.get("postedAt"),
+                "snippet": (item.get("description") or "")[:300],
+                "url": item.get("link") or item.get("share_link") or "",
+                "source": "serper_jobs",
+                "link_type": "direct_listing",
+            }
+        )
     return out, [full_query]

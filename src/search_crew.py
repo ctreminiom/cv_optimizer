@@ -12,17 +12,17 @@ The Job Researcher uses the search_jobs tool (which prefers Tavily/Serper
 when configured, and always includes deep-link fallbacks to LinkedIn,
 Indeed CR, Computrabajo, Hireline, Tecoloco, Encuentra24, Google Jobs).
 """
+
 from __future__ import annotations
 
 import os
 from pathlib import Path
 
-from crewai import Agent, Crew, Process, Task, LLM
+from crewai import LLM, Agent, Crew, Process, Task
 from crewai.project import CrewBase, agent, crew, task
 
-from src.constants import TASK_PARSE_CV, DEFAULT_MODEL_HAIKU, DEFAULT_MODEL_SONNET
+from src.constants import DEFAULT_MODEL_HAIKU, DEFAULT_MODEL_SONNET, TASK_PARSE_CV
 from src.tools import parse_cv, search_jobs
-from src.models import CandidateProfile, JobSearchResult
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
@@ -38,15 +38,18 @@ class JobSearchCrew:
     agents_config = str(_PROJECT_ROOT / "config" / "agents.yaml")
     tasks_config = str(_PROJECT_ROOT / "config" / "tasks.yaml")
 
-    def __init__(self, location: str = "Costa Rica",
-                 max_results: int = 20,
-                 modality: str | None = None,
-                 seniority: str | None = None,
-                 role: str | None = None,
-                 keywords: list[str] | None = None,
-                 contract_type: str | None = None,
-                 include_sources: list[str] | None = None,
-                 min_match: int = 0) -> None:
+    def __init__(
+        self,
+        location: str = "Costa Rica",
+        max_results: int = 20,
+        modality: str | None = None,
+        seniority: str | None = None,
+        role: str | None = None,
+        keywords: list[str] | None = None,
+        contract_type: str | None = None,
+        include_sources: list[str] | None = None,
+        min_match: int = 0,
+    ) -> None:
         self.location = location
         self.max_results = max_results
         self.modality = modality

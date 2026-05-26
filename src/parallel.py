@@ -9,16 +9,17 @@ In CrewAI's sequential process this would block. We bypass the crew for
 this phase and call each agent's underlying LLM directly, then feed the
 results back into the crew for synthesis.
 """
+
 from __future__ import annotations
 
 import asyncio
-import json
-from typing import Any, Awaitable, Callable, Dict, List
+from collections.abc import Awaitable, Callable
+from typing import Any
 
 
-async def _run_evaluator(name: str,
-                         fn: Callable[..., Awaitable[Dict[str, Any]]],
-                         **kwargs: Any) -> Dict[str, Any]:
+async def _run_evaluator(
+    name: str, fn: Callable[..., Awaitable[dict[str, Any]]], **kwargs: Any
+) -> dict[str, Any]:
     """Run one evaluator and tag its result with the evaluator name."""
     try:
         result = await fn(**kwargs)
@@ -28,24 +29,22 @@ async def _run_evaluator(name: str,
 
 
 async def run_phase_2_parallel(
-    evaluators: Dict[str, Callable[..., Awaitable[Dict[str, Any]]]],
-    shared_inputs: Dict[str, Any],
-) -> Dict[str, Dict[str, Any]]:
+    evaluators: dict[str, Callable[..., Awaitable[dict[str, Any]]]],
+    shared_inputs: dict[str, Any],
+) -> dict[str, dict[str, Any]]:
     """
     Run all Phase-2 evaluators concurrently. `evaluators` maps evaluator
     name → async callable that takes shared_inputs as kwargs.
 
     Returns: { evaluator_name: result_dict }
     """
-    coroutines = [
-        _run_evaluator(name, fn, **shared_inputs)
-        for name, fn in evaluators.items()
-    ]
+    coroutines = [_run_evaluator(name, fn, **shared_inputs) for name, fn in evaluators.items()]
     results = await asyncio.gather(*coroutines, return_exceptions=False)
     return {r["name"]: r for r in results}
 
 
-def run_phase_2(evaluators: Dict[str, Callable], shared_inputs: Dict[str, Any]
-                ) -> Dict[str, Dict[str, Any]]:
+def run_phase_2(
+    evaluators: dict[str, Callable], shared_inputs: dict[str, Any]
+) -> dict[str, dict[str, Any]]:
     """Synchronous wrapper for callers not in an async context."""
     return asyncio.run(run_phase_2_parallel(evaluators, shared_inputs))

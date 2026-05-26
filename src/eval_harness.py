@@ -11,23 +11,23 @@ Each example lives at eval/examples/<name>/ with:
   - job.pdf         — the target job posting
   - expected.json   — EvalExample schema (score range, must-include words)
 """
+
 from __future__ import annotations
 
 import json
 import time
 from pathlib import Path
-from typing import List
 
 from src.models import EvalExample, EvalRunResult, EvalSummary
 
 
-def discover_examples(eval_dir: Path) -> List[EvalExample]:
+def discover_examples(eval_dir: Path) -> list[EvalExample]:
     """Scan eval/examples/ for example folders."""
     examples_dir = eval_dir / "examples"
     if not examples_dir.exists():
         return []
 
-    examples: List[EvalExample] = []
+    examples: list[EvalExample] = []
     for sub in sorted(examples_dir.iterdir()):
         if not sub.is_dir():
             continue
@@ -45,20 +45,20 @@ def discover_examples(eval_dir: Path) -> List[EvalExample]:
     return examples
 
 
-def run_one_example(example: EvalExample,
-                    process_fn) -> EvalRunResult:
+def run_one_example(example: EvalExample, process_fn) -> EvalRunResult:
     """
     Run the full pipeline on a single example and verify expectations.
     `process_fn(cv_path, job_path)` should return a JobReport-like dict.
     """
     start = time.time()
-    issues: List[str] = []
+    issues: list[str] = []
 
     try:
         report = process_fn(Path(example.cv_path), Path(example.job_path))
     except Exception as e:
         return EvalRunResult(
-            example_name=example.name, passed=False,
+            example_name=example.name,
+            passed=False,
             actual_match_score=0,
             issues=[f"pipeline failure: {e}"],
             elapsed_seconds=time.time() - start,
@@ -104,10 +104,11 @@ def run_eval_suite(eval_dir: Path, process_fn) -> EvalSummary:
     start = time.time()
     examples = discover_examples(eval_dir)
     if not examples:
-        return EvalSummary(total_examples=0, passed=0, failed=0,
-                           pass_rate=0.0, results=[], elapsed_seconds=0.0)
+        return EvalSummary(
+            total_examples=0, passed=0, failed=0, pass_rate=0.0, results=[], elapsed_seconds=0.0
+        )
 
-    results: List[EvalRunResult] = []
+    results: list[EvalRunResult] = []
     for ex in examples:
         print(f"\n── Running {ex.name} ──")
         r = run_one_example(ex, process_fn)

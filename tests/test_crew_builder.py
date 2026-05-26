@@ -1,9 +1,10 @@
 """Tests for CrewBuilder protocol and plugin composition."""
+
 from __future__ import annotations
 
 from unittest.mock import MagicMock
 
-from src.crew import CVOptimizerCrew, CrewBuilder, CrewPlugin, CompetitorPlugin
+from src.crew import CompetitorPlugin, CVOptimizerCrew
 
 
 def test_crew_optimizer_has_build_method() -> None:
@@ -47,10 +48,15 @@ def test_plugins_list_is_stored() -> None:
 
 def test_agent_and_task_methods_are_private() -> None:
     # CrewAI's @CrewBase injects framework helpers — exclude those.
-    _CREWAI_FRAMEWORK = {"map_all_agent_variables", "map_all_task_variables",
-                         "original_agents_config_path", "original_tasks_config_path"}
+    _CREWAI_FRAMEWORK = {
+        "map_all_agent_variables",
+        "map_all_task_variables",
+        "original_agents_config_path",
+        "original_tasks_config_path",
+    }
     public_attrs = [
-        a for a in dir(CVOptimizerCrew)
+        a
+        for a in dir(CVOptimizerCrew)
         if not a.startswith("_")
         and a not in ("build", "crew", "agents_config", "tasks_config")
         and a not in _CREWAI_FRAMEWORK
@@ -66,6 +72,7 @@ def test_agent_and_task_methods_are_private() -> None:
 
 def test_old_boolean_flags_removed_from_init() -> None:
     import inspect
+
     sig = inspect.signature(CVOptimizerCrew.__init__)
     params = list(sig.parameters.keys())
     assert "skip_cover_letter" not in params

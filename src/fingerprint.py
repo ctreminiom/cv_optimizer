@@ -11,6 +11,7 @@ Layout:
     cache/jd/<hash>.json            parsed JobPosting per job file
     cache/eval/<hash>.json          full JobReport per (cv,jd,flags)
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -31,9 +32,10 @@ def _hash_file(path: Path) -> str:
 
 # ─── Top-level fingerprint (legacy combined key) ──────────────────────────
 
-def compute_fingerprint(cv_path: Path, job_path: Path,
-                        skip_cover_letter: bool = False,
-                        with_competitor: bool = False) -> str:
+
+def compute_fingerprint(
+    cv_path: Path, job_path: Path, skip_cover_letter: bool = False, with_competitor: bool = False
+) -> str:
     """Hash the binary content of both files plus run flags. Stable across
     runs — same inputs → same fingerprint."""
     h = hashlib.sha256()
@@ -81,6 +83,7 @@ def clear_cache() -> int:
 
 
 # ─── Split caches — independent CV / JD / eval (§3.3) ─────────────────────
+
 
 def cv_fingerprint(cv_path: Path) -> str:
     """Stable fingerprint of the master CV file only."""

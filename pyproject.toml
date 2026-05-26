@@ -78,7 +78,12 @@ exclude = [".venv", "private", "cache", "output", "build", "dist"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "SIM"]
-ignore = ["E501"]  # line length handled by formatter
+ignore = [
+    "E501",    # line length handled by formatter
+    "SIM102",  # nested if — sometimes clearer than collapsed
+    "SIM117",  # nested with — sometimes clearer than collapsed
+    "SIM222",  # `x or True` — used as explicit sentinel comments in tests
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

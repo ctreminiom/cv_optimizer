@@ -3,6 +3,7 @@
 Use these for user-facing CLI output. For diagnostic logging (tool calls,
 retries, cache hits) use `src.logging_config.get_logger` instead.
 """
+
 from __future__ import annotations
 
 import sys
@@ -14,6 +15,7 @@ try:
     from rich.console import Console
     from rich.panel import Panel
     from rich.table import Table
+
     HAS_RICH = True
     console: Any = Console()
 except ImportError:

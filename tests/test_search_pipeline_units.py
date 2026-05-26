@@ -1,4 +1,5 @@
 """Unit tests for decomposed search_pipeline helpers."""
+
 from __future__ import annotations
 
 import json
@@ -7,8 +8,13 @@ from src.search_pipeline import _build_judge_prompt, _parse_judge_response
 
 
 def test_build_judge_prompt_fills_all_slots() -> None:
-    op = {"title": "SRE", "company": "Acme", "location": "San José, CR",
-          "modality": "remote", "snippet": "Deploy microservices."}
+    op = {
+        "title": "SRE",
+        "company": "Acme",
+        "location": "San José, CR",
+        "modality": "remote",
+        "snippet": "Deploy microservices.",
+    }
     prompt = _build_judge_prompt(
         op,
         target_role="sre",
@@ -25,22 +31,31 @@ def test_build_judge_prompt_fills_all_slots() -> None:
 def test_build_judge_prompt_uses_any_for_none_params() -> None:
     op = {"title": "Dev", "company": "X", "location": "", "modality": None, "snippet": ""}
     prompt = _build_judge_prompt(
-        op, target_role="", target_seniority=None,
-        target_modality=None, target_location="",
+        op,
+        target_role="",
+        target_seniority=None,
+        target_modality=None,
+        target_location="",
     )
     assert "any" in prompt
 
 
 def test_parse_judge_response_valid_json() -> None:
-    payload = json.dumps({"role_match": True, "seniority_match": True,
-                          "modality_match": True, "location_match": True})
+    payload = json.dumps(
+        {
+            "role_match": True,
+            "seniority_match": True,
+            "modality_match": True,
+            "location_match": True,
+        }
+    )
     result = _parse_judge_response(payload)
     assert result is not None
     assert result["role_match"] is True
 
 
 def test_parse_judge_response_strips_fences() -> None:
-    payload = "```json\n{\"role_match\": false}\n```"
+    payload = '```json\n{"role_match": false}\n```'
     result = _parse_judge_response(payload)
     assert result == {"role_match": False}
 

@@ -1,4 +1,5 @@
 """Keyword matching and CV diff tools."""
+
 from __future__ import annotations
 
 import json
@@ -10,10 +11,50 @@ from crewai.tools import tool
 __all__ = ["compute_keyword_match", "compute_cv_diff"]
 
 
-_STOPWORDS = set("""
-a an the and or but of for to in on at by from with as is are was were be been
-this that these those it its their our your we you they i me my so if then
-""".split())
+_STOPWORDS = set(
+    [
+        "a",
+        "an",
+        "the",
+        "and",
+        "or",
+        "but",
+        "of",
+        "for",
+        "to",
+        "in",
+        "on",
+        "at",
+        "by",
+        "from",
+        "with",
+        "as",
+        "is",
+        "are",
+        "was",
+        "were",
+        "be",
+        "been",
+        "this",
+        "that",
+        "these",
+        "those",
+        "it",
+        "its",
+        "their",
+        "our",
+        "your",
+        "we",
+        "you",
+        "they",
+        "i",
+        "me",
+        "my",
+        "so",
+        "if",
+        "then",
+    ]
+)
 
 
 def _tokenize(text: str) -> list[str]:
@@ -49,18 +90,19 @@ def compute_keyword_match(input_json: str) -> str:
     matched = [k for k in ats_keywords if k in cv_token_set]
     missing = [k for k in ats_keywords if k not in cv_token_set]
     match_pct = round((len(matched) / max(len(ats_keywords), 1)) * 100, 1)
-    overused = [k for k, c in cv_token_count.items()
-                if c > 5 and k in ats_keywords]
+    overused = [k for k, c in cv_token_count.items() if c > 5 and k in ats_keywords]
     top_cv_keywords = [w for w, _ in cv_token_count.most_common(15)]
 
-    return json.dumps({
-        "match_pct": match_pct,
-        "matched_keywords": matched,
-        "missing_keywords": missing,
-        "overused_keywords": overused,
-        "top_cv_keywords": top_cv_keywords,
-        "total_ats_keywords": len(ats_keywords),
-    })
+    return json.dumps(
+        {
+            "match_pct": match_pct,
+            "matched_keywords": matched,
+            "missing_keywords": missing,
+            "overused_keywords": overused,
+            "top_cv_keywords": top_cv_keywords,
+            "total_ats_keywords": len(ats_keywords),
+        }
+    )
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -83,9 +125,9 @@ def compute_cv_diff(input_json: str) -> str:
     fact_patterns = {
         "percentages": r"\b\d{1,3}(?:\.\d+)?%",
         "dollar_amounts": r"\$\s?\d[\d,]*(?:\.\d+)?[KkMmBb]?",
-        "year_ranges":  r"\b(?:19|20)\d{2}\s*[-–—]\s*(?:(?:19|20)\d{2}|[Pp]resent)",
-        "team_sizes":   r"\bteam of \d+|\b\d+\s*(?:engineers|developers|people|reports)",
-        "duration":     r"\b\d+\s*(?:years?|months?)\b",
+        "year_ranges": r"\b(?:19|20)\d{2}\s*[-–—]\s*(?:(?:19|20)\d{2}|[Pp]resent)",
+        "team_sizes": r"\bteam of \d+|\b\d+\s*(?:engineers|developers|people|reports)",
+        "duration": r"\b\d+\s*(?:years?|months?)\b",
     }
 
     fabrications: list[dict[str, str]] = []
@@ -96,9 +138,12 @@ def compute_cv_diff(input_json: str) -> str:
             fabrications.append({"category": name, "value": f, "appears_in": "adapted_only"})
 
     escalation_pairs = [
-        ("collaborated", "led"), ("collaborated", "spearheaded"),
-        ("contributed", "led"), ("helped", "led"),
-        ("supported", "drove"), ("worked on", "owned"),
+        ("collaborated", "led"),
+        ("collaborated", "spearheaded"),
+        ("contributed", "led"),
+        ("helped", "led"),
+        ("supported", "drove"),
+        ("worked on", "owned"),
         ("assisted", "managed"),
     ]
     exaggeration_risks: list[str] = []
@@ -106,10 +151,11 @@ def compute_cv_diff(input_json: str) -> str:
         if weak in original.lower() and strong in adapted.lower() and weak not in adapted.lower():
             exaggeration_risks.append(f"original used '{weak}' — adapted uses '{strong}' (verify)")
 
-    return json.dumps({
-        "fabrications_found": fabrications,
-        "altered_facts": [],
-        "exaggeration_risks": exaggeration_risks,
-        "passes": len(fabrications) == 0 and len(exaggeration_risks) == 0,
-    })
-
+    return json.dumps(
+        {
+            "fabrications_found": fabrications,
+            "altered_facts": [],
+            "exaggeration_risks": exaggeration_risks,
+            "passes": len(fabrications) == 0 and len(exaggeration_risks) == 0,
+        }
+    )

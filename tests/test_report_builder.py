@@ -1,22 +1,21 @@
 """Tests for src/report/builder.py and src/report/_extractors.py (Phase 3b)."""
+
 from __future__ import annotations
 
 from typing import Any
 from unittest.mock import MagicMock
 
-import pytest
-
+from src.constants import TASK_HR_EVAL, TASK_PARSE_JOB
 from src.report.builder import (
-    TaskExtractor,
     _REGISTRY,
+    TaskExtractor,
     _coerce_value,
     augment_report,
     register_extractor,
 )
-from src.constants import TASK_PARSE_JOB, TASK_HR_EVAL, TASK_PARSE_CV
-
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
 
 class _TaskOut:
     def __init__(self, name="", pydantic=None, raw=None, task=None):
@@ -44,6 +43,7 @@ class _CrewResult:
 
 
 # ── _coerce_value ─────────────────────────────────────────────────────────────
+
 
 def test_coerce_value_pydantic_wins() -> None:
     pyd = _make_pyd("JobPosting", {"title": "Eng"})
@@ -75,6 +75,7 @@ def test_coerce_value_no_data_returns_none() -> None:
 
 # ── register_extractor ────────────────────────────────────────────────────────
 
+
 def test_register_extractor_with_instance() -> None:
     before = len(_REGISTRY)
 
@@ -104,6 +105,7 @@ def test_register_extractor_with_class_instantiates() -> None:
 
 # ── augment_report ────────────────────────────────────────────────────────────
 
+
 def test_augment_report_empty_result_returns_report() -> None:
     result = MagicMock()
     result.tasks_output = []
@@ -124,7 +126,6 @@ def test_augment_report_bad_crew_result_returns_report() -> None:
 
 
 def test_augment_report_list_append() -> None:
-    from src.constants import TASK_HR_EVAL
     ev = _make_pyd("AgentEvaluation", {"agent_role": "HR", "score": 80})
     out = _TaskOut(name=TASK_HR_EVAL, pydantic=ev)
     report = augment_report({}, _CrewResult([out]))
@@ -156,7 +157,9 @@ def test_augment_report_substr_fallback() -> None:
 
 # ── TaskExtractor protocol ────────────────────────────────────────────────────
 
+
 def test_named_extractor_satisfies_protocol() -> None:
     from src.report._extractors import _NamedTaskExtractor
+
     instance = _NamedTaskExtractor()
     assert isinstance(instance, TaskExtractor)

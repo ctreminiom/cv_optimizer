@@ -8,6 +8,7 @@ in interactive mode, and patterns from prior jobs).
 This is intentionally simple: a single key-value table with namespaces.
 For more sophisticated retrieval, swap to a vector store later.
 """
+
 from __future__ import annotations
 
 import json
@@ -39,8 +40,7 @@ def remember(namespace: str, key: str, value: Any) -> None:
     payload = json.dumps(value, default=str)
     with _conn() as conn:
         conn.execute(
-            "INSERT OR REPLACE INTO memory (namespace, key, value, updated_at) "
-            "VALUES (?, ?, ?, ?)",
+            "INSERT OR REPLACE INTO memory (namespace, key, value, updated_at) VALUES (?, ?, ?, ?)",
             (namespace, key, payload, time.time()),
         )
 

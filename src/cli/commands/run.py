@@ -2,76 +2,75 @@
 
 Extracted from main.py (SRP Phase 3e). No logic changes.
 """
+
 from __future__ import annotations
 
 import argparse
-import concurrent.futures
+import contextlib
 import json
 import os
 import sys
 import time
 import traceback
 from pathlib import Path
-from typing import Any
 
 from src.cli.tracker import (
     AgentInteractionTracker as _AgentInteractionTracker,
-    AGENT_WORKFLOW_PHASES as _AGENT_WORKFLOW_PHASES,
-    TASK_VIS as _TASK_VIS,
+)
+from src.cli.tracker import (
     print_agent_workflow_graph as _print_agent_workflow_graph,
 )
 from src.cli.utils import (
-    SUPPORTED_CV_EXTS as _SUPPORTED_CV_EXTS,
     classify_role_type as _classify_role_type,
-    validate_cv_path as _validate_cv_path,
+)
+from src.cli.utils import (
     slugify as _slugify,
 )
-from src.constants import (
-    TASK_PARSE_JOB, TASK_PARSE_CV, TASK_EXTRACT_VOICE,
-    TASK_HR_EVAL, TASK_HIRING_EVAL, TASK_TECHNICAL_EVAL,
-    TASK_ATS_EVAL, TASK_GAP_ANALYSIS, TASK_SECOND_OPINION,
-    TASK_COMPETITOR, TASK_CONSOLIDATE,
-    TASK_REWRITE_CV, TASK_HUMANIZE_CV, TASK_HUMANIZE_RETRY,
-    TASK_MIRRORING_CHECK, TASK_VERIFICATION,
-    TASK_INTERVIEW_PREP, TASK_COVER_LETTER,
+from src.cli.utils import (
+    validate_cv_path as _validate_cv_path,
 )
 from src.pipeline.coercion import (
     as_dict as _as_dict,
-    as_list as _as_list,
-    as_list_of_dicts as _as_list_of_dicts,
 )
 from src.presentation import (
     HAS_RICH as _HAS_RICH,
-    Panel,
-    Table,
+)
+from src.presentation import (
     banner as _banner,
+)
+from src.presentation import (
     console as _console,
+)
+from src.presentation import (
     err as _err,
+)
+from src.presentation import (
     info as _info,
+)
+from src.presentation import (
     ok as _ok,
+)
+from src.presentation import (
     warn as _warn,
 )
 from src.report.builder import augment_report as _augment_report_from_tasks
 from src.report.enricher import (
     prescreen_with_haiku as _prescreen_with_haiku,
+)
+from src.report.enricher import (
     write_prescreen_stub as _write_prescreen_stub,
 )
 from src.report.renderer import (
     _ensure_markdown_report,
-    _write_failed_stub,
-    _write_sidecar_artifacts,
-    _write_cover_letter_sidecar,
-    _generate_cv_proposal_with_opus,
-    _ensure_cv_proposal,
-    _build_proposal_analysis,
 )
 
 __all__ = ["cmd_run"]
 
+
 def _ensure_demo_files() -> Path:
     """Create cv/sample_cv.docx and jobs/sample_job.pdf if missing.
-       Returns the demo job path."""
-    from src.sample_data import SAMPLE_CV_TEXT, SAMPLE_JOB_TEXT, DEMO_CV_PATH, DEMO_JOB_PDF_PATH
+    Returns the demo job path."""
+    from src.sample_data import DEMO_CV_PATH, DEMO_JOB_PDF_PATH, SAMPLE_CV_TEXT, SAMPLE_JOB_TEXT
 
     cv_path = Path(DEMO_CV_PATH)
     job_path = Path(DEMO_JOB_PDF_PATH)
@@ -80,6 +79,7 @@ def _ensure_demo_files() -> Path:
 
     if not cv_path.exists():
         from docx import Document
+
         doc = Document()
         for line in SAMPLE_CV_TEXT.splitlines():
             doc.add_paragraph(line)
@@ -90,6 +90,7 @@ def _ensure_demo_files() -> Path:
         try:
             from reportlab.lib.pagesizes import letter
             from reportlab.pdfgen import canvas
+
             c = canvas.Canvas(str(job_path), pagesize=letter)
             y = 750
             for line in SAMPLE_JOB_TEXT.splitlines():
@@ -112,28 +113,32 @@ def _ensure_demo_files() -> Path:
 
 # ─── Process one job ──────────────────────────────────────────────────────
 
-from src.cli.tracker import (
-    AgentInteractionTracker as _AgentInteractionTracker,
-    AGENT_WORKFLOW_PHASES as _AGENT_WORKFLOW_PHASES,
-    TASK_VIS as _TASK_VIS,
-    print_agent_workflow_graph as _print_agent_workflow_graph,
-)
 
-def _process_one_job(cv_path: Path, job_path: Path, output_dir: Path,
-                     skip_cover_letter: bool, with_competitor: bool,
-                     mode: str, prescreen: bool = True) -> dict:
+def _process_one_job(
+    cv_path: Path,
+    job_path: Path,
+    output_dir: Path,
+    skip_cover_letter: bool,
+    with_competitor: bool,
+    mode: str,
+    prescreen: bool = True,
+) -> dict:
     """Run the full crew for a single job posting (.pdf, .txt, or .md).
     Uses the fingerprint cache (#15) to skip if we've processed this exact pair before."""
-    from src.crew import CVOptimizerCrew, CompetitorPlugin
+    from src.crew import CompetitorPlugin, CVOptimizerCrew
     from src.fingerprint import (
-        compute_fingerprint, load_cached, save_cached,
-        cv_fingerprint, jd_fingerprint,
-        save_cv_parse, save_jd_parse,
+        compute_fingerprint,
+        cv_fingerprint,
+        jd_fingerprint,
+        load_cached,
+        save_cached,
+        save_cv_parse,
+        save_jd_parse,
     )
 
-    fp = compute_fingerprint(cv_path, job_path,
-                              skip_cover_letter=skip_cover_letter,
-                              with_competitor=with_competitor)
+    fp = compute_fingerprint(
+        cv_path, job_path, skip_cover_letter=skip_cover_letter, with_competitor=with_competitor
+    )
     # Split fingerprints — stable across CV edits to OTHER fields. §3.3.
     cv_fp = cv_fingerprint(cv_path)
     jd_fp = jd_fingerprint(job_path)
@@ -142,14 +147,17 @@ def _process_one_job(cv_path: Path, job_path: Path, output_dir: Path,
     # candidate_profile (and a full job), which silently empties Skill
     # Alignment, the Job Posting Reference, and parsed_resume.json. Treat those
     # as a miss so the crew re-runs and repopulates the parse outputs.
-    if cached and not _as_dict(cached.get("candidate_profile")
-                               or cached.get("candidate")):
-        _info(f"Cache hit (fingerprint {fp}) but missing parsed candidate "
-              "profile — discarding stale entry and re-running the crew.")
+    if cached and not _as_dict(cached.get("candidate_profile") or cached.get("candidate")):
+        _info(
+            f"Cache hit (fingerprint {fp}) but missing parsed candidate "
+            "profile — discarding stale entry and re-running the crew."
+        )
         cached = None
     if cached:
-        _info(f"Cache hit (fingerprint {fp}) — skipping crew, "
-              "regenerating report from cached evaluation data …")
+        _info(
+            f"Cache hit (fingerprint {fp}) — skipping crew, "
+            "regenerating report from cached evaluation data …"
+        )
         cached["cached"] = True
         cached["job_path"] = str(job_path)
 
@@ -166,8 +174,7 @@ def _process_one_job(cv_path: Path, job_path: Path, output_dir: Path,
                 cached["output_files"]["report_markdown"] = str(report_path)
             if _HAS_RICH:
                 _console.print(
-                    f"[bold green]📄 Report (from cache):[/bold green] "
-                    f"[cyan]{report_path}[/cyan]"
+                    f"[bold green]📄 Report (from cache):[/bold green] [cyan]{report_path}[/cyan]"
                 )
         return cached
 
@@ -184,8 +191,7 @@ def _process_one_job(cv_path: Path, job_path: Path, output_dir: Path,
             resume_slug = _slugify(cv_path.stem, max_len=60) or "resume"
             job_slug = _slugify(job_path.stem, max_len=60) or job_path.stem
             target_dir = output_dir / resume_slug / job_slug
-            md_path = _write_prescreen_stub(target_dir, job_path, cv_path,
-                                              prescreen_result)
+            md_path = _write_prescreen_stub(target_dir, job_path, cv_path, prescreen_result)
             return {
                 "prescreen_skipped": True,
                 "prescreen": prescreen_result,
@@ -195,16 +201,18 @@ def _process_one_job(cv_path: Path, job_path: Path, output_dir: Path,
                 "job": {"title": job_path.stem},
                 "output_files": {"report_markdown": str(md_path)} if md_path else {},
                 "enrichment": {
-                    "status_badge": ("🔴", "Pre-screen skip",
-                                       prescreen_result.get("reason", "")),
+                    "status_badge": ("🔴", "Pre-screen skip", prescreen_result.get("reason", "")),
                     "decision_helper": {
                         "verdict": "❌ Skip — invest time in higher-fit roles",
                         "reason": prescreen_result.get("reason", ""),
-                        "pros": [], "cons": [],
+                        "pros": [],
+                        "cons": [],
                     },
                     "effort_estimate": {
-                        "minutes": 0, "band": "n/a",
-                        "emoji": "⏭️", "label": "skipped",
+                        "minutes": 0,
+                        "band": "n/a",
+                        "emoji": "⏭️",
+                        "label": "skipped",
                     },
                     "posting_freshness": _posting_freshness(job_path),
                 },
@@ -215,8 +223,9 @@ def _process_one_job(cv_path: Path, job_path: Path, output_dir: Path,
 
     # Pre-run UX: show the user the full agent collaboration graph so they
     # can see exactly which specialists will weigh in and how the data flows.
-    _print_agent_workflow_graph(skip_cover_letter=skip_cover_letter,
-                                 with_competitor=with_competitor)
+    _print_agent_workflow_graph(
+        skip_cover_letter=skip_cover_letter, with_competitor=with_competitor
+    )
 
     inputs = {
         "cv_docx_path": str(cv_path),
@@ -234,10 +243,8 @@ def _process_one_job(cv_path: Path, job_path: Path, output_dir: Path,
 
     # Hook a per-task callback to drive a live progress bar.
     tracker = _AgentInteractionTracker(total_tasks=len(crew_obj.tasks))
-    try:
+    with contextlib.suppress(Exception):
         crew_obj.task_callback = tracker.on_task_complete
-    except Exception:
-        pass
 
     tracker.announce_start()
     crew_started = time.time()
@@ -301,8 +308,7 @@ def _process_one_job(cv_path: Path, job_path: Path, output_dir: Path,
     # §3.3 — Persist the per-input parse outputs so future runs can re-use
     # them even if the OTHER input changes (one-char CV edit → all jobs miss).
     try:
-        cand = _as_dict(report.get("candidate_profile")
-                          or report.get("candidate"))
+        cand = _as_dict(report.get("candidate_profile") or report.get("candidate"))
         if cand:
             save_cv_parse(cv_fp, cand)
         job_dict = _as_dict(report.get("job"))
@@ -313,65 +319,22 @@ def _process_one_job(cv_path: Path, job_path: Path, output_dir: Path,
     return report
 
 
-from src.report.builder import augment_report as _augment_report_from_tasks
-
-
 # ─────────────────────────────────────────────────────────────────────────────
 # Report enrichment — pure-Python post-processing helpers + one bundled
 # Haiku call. These produce the new sections that turn the .md from a
 # "summary of evaluations" into a complete decision + edit guide.
 # ─────────────────────────────────────────────────────────────────────────────
 
-from src.pipeline.coercion import (
-    as_dict as _as_dict,
-    as_list as _as_list,
-    as_list_of_dicts as _as_list_of_dicts,
-)
 
 # ─── Scoring + decision helpers ───────────────────────────────────────────
 # Implementations live in src/pipeline/scoring.py. The underscore aliases
 # preserve the legacy names used at the call sites in this file.
 
-from src.pipeline.scoring import (
-    CHECKLIST_STOPWORDS as _CHECKLIST_STOPWORDS,
-    NUMBER_RE as _NUMBER_RE,
-    STRONG_ACTION_VERBS as _STRONG_ACTION_VERBS,
-    VERDICT_TIERS as _VERDICT_TIERS,
-    WEAK_WORDS as _WEAK_WORDS,
-    audit_quantification as _audit_quantification,
-    audit_weak_words as _audit_weak_words,
-    build_pre_submission_checklist as _build_pre_submission_checklist,
-    checklist_tokens as _checklist_tokens,
-    compute_skill_alignment_matrix as _compute_skill_alignment_matrix,
-    decision_helper as _decision_helper,
-    effort_impact_quadrant as _effort_impact_quadrant,
-    estimate_score_uplift as _estimate_score_uplift,
-    extract_strong_verbs_from_jd as _extract_strong_verbs_from_jd,
-    match_by_category as _match_by_category,
-    qualitative_match_by_category as _qualitative_match_by_category,
-    status_badge as _status_badge,
-)
 
-
-from src.report.enricher import (
-    decision_helper_with_opus as _decision_helper_with_opus,
-    classify_match_with_opus as _classify_match_with_opus,
+from src.report.enricher import (  # noqa: E402
     posting_freshness as _posting_freshness,
-    prescreen_with_haiku as _prescreen_with_haiku,
-    copy_job_source_as_pdf as _copy_job_source_as_pdf,
-    write_prescreen_stub as _write_prescreen_stub,
 )
-from src.report.renderer import (
-    _ensure_markdown_report,
-    _write_failed_stub,
-    _write_sidecar_artifacts,
-    _build_links_section,
-    _generate_strategic_insights,
-    _generate_cv_proposal_with_opus,
-    _ensure_cv_proposal,
-    _build_proposal_analysis,
-    _write_cover_letter_sidecar,
-)
+
 
 def cmd_run(args: argparse.Namespace) -> int:
     if args.demo:
@@ -416,7 +379,9 @@ def cmd_run(args: argparse.Namespace) -> int:
     if getattr(args, "rerun_failed", False) or getattr(args, "rerun_empty", False):
         original_count = len(pdfs)
         pdfs = _filter_jobs_for_rerun(
-            pdfs, args.output, cv_path,
+            pdfs,
+            args.output,
+            cv_path,
             rerun_failed=getattr(args, "rerun_failed", False),
             rerun_empty=getattr(args, "rerun_empty", False),
         )
@@ -438,6 +403,7 @@ def cmd_run(args: argparse.Namespace) -> int:
 
     started = time.time()
     import datetime as _dt
+
     run_id = _dt.datetime.now().strftime("%Y%m%d_%H%M%S")
     summary = {
         "run_id": run_id,
@@ -464,10 +430,12 @@ def cmd_run(args: argparse.Namespace) -> int:
             # The crew finished but the report renderer crashed. Surface it
             # as a failure so the run_summary isn't misleading.
             summary["jobs_failed"] += 1
-            summary["failures"].append({
-                "job": str(job_path),
-                "error": "report renderer failed — see _FAILED.pdf in the job folder",
-            })
+            summary["failures"].append(
+                {
+                    "job": str(job_path),
+                    "error": "report renderer failed — see _FAILED.pdf in the job folder",
+                }
+            )
             summary["results"].append(res)
             _err(f"[{idx}/{len(pdfs)}] Render failed for {job_path.name} — see _FAILED.pdf")
             return
@@ -488,7 +456,9 @@ def cmd_run(args: argparse.Namespace) -> int:
             _banner(f"[{i}/{len(pdfs)}]  {job_path.name}")
             try:
                 res = _process_one_job(
-                    cv_path=cv_path, job_path=job_path, output_dir=args.output,
+                    cv_path=cv_path,
+                    job_path=job_path,
+                    output_dir=args.output,
                     skip_cover_letter=args.skip_cover_letter,
                     with_competitor=args.with_competitor,
                     mode=args.mode,
@@ -504,17 +474,21 @@ def cmd_run(args: argparse.Namespace) -> int:
         # Parallel — job-level concurrency. I/O-bound (API calls), threads
         # are fine. Per-job banners are interleaved; we tag each line.
         import concurrent.futures as _cf
+
         _info(f"Running {len(pdfs)} jobs with --parallel {parallel}")
         with _cf.ThreadPoolExecutor(max_workers=parallel) as ex:
             futures = {
                 ex.submit(
                     _process_one_job,
-                    cv_path=cv_path, job_path=jp, output_dir=args.output,
+                    cv_path=cv_path,
+                    job_path=jp,
+                    output_dir=args.output,
                     skip_cover_letter=args.skip_cover_letter,
                     with_competitor=args.with_competitor,
                     mode=args.mode,
                     prescreen=getattr(args, "prescreen", True),
-                ): (i, jp) for i, jp in enumerate(pdfs, 1)
+                ): (i, jp)
+                for i, jp in enumerate(pdfs, 1)
             }
             for fut in _cf.as_completed(futures):
                 i, jp = futures[fut]
@@ -553,30 +527,33 @@ def _write_run_summary_json(summary: dict, output_dir: Path) -> Path | None:
         path = output_dir / "run_summary.json"
         # Slim down — drop the giant raw_output blobs but keep structured fields.
         slim_results = []
-        for r in (summary.get("results") or []):
+        for r in summary.get("results") or []:
             r = _as_dict(r) or {}
-            slim_results.append({
-                "job_path": r.get("job_path"),
-                "job": _as_dict(r.get("job")),
-                "cached": r.get("cached", False),
-                "prescreen_skipped": r.get("prescreen_skipped", False),
-                "fingerprint": r.get("fingerprint"),
-                "output_files": _as_dict(r.get("output_files")),
-                "enrichment": {
-                    "status_badge": _as_dict(r.get("enrichment")).get("status_badge"),
-                    "decision_helper": _as_dict(_as_dict(r.get("enrichment"))
-                                                  .get("decision_helper")),
-                    "effort_estimate": _as_dict(_as_dict(r.get("enrichment"))
-                                                  .get("effort_estimate")),
-                    "tldr": _as_dict(_as_dict(r.get("enrichment")).get("tldr")),
-                    "posting_freshness": _as_dict(r.get("enrichment")).get("posting_freshness"),
-                },
-                "overall_match_score": r.get("overall_match_score"),
-                "ats_missing_keywords": _as_dict(r.get("ats_report")).get("missing_keywords"),
-                "critical_gaps": _as_dict(r.get("gap_analysis")).get("critical_gaps"),
-            })
-        out = {**{k: v for k, v in summary.items() if k != "results"},
-                "results": slim_results}
+            slim_results.append(
+                {
+                    "job_path": r.get("job_path"),
+                    "job": _as_dict(r.get("job")),
+                    "cached": r.get("cached", False),
+                    "prescreen_skipped": r.get("prescreen_skipped", False),
+                    "fingerprint": r.get("fingerprint"),
+                    "output_files": _as_dict(r.get("output_files")),
+                    "enrichment": {
+                        "status_badge": _as_dict(r.get("enrichment")).get("status_badge"),
+                        "decision_helper": _as_dict(
+                            _as_dict(r.get("enrichment")).get("decision_helper")
+                        ),
+                        "effort_estimate": _as_dict(
+                            _as_dict(r.get("enrichment")).get("effort_estimate")
+                        ),
+                        "tldr": _as_dict(_as_dict(r.get("enrichment")).get("tldr")),
+                        "posting_freshness": _as_dict(r.get("enrichment")).get("posting_freshness"),
+                    },
+                    "overall_match_score": r.get("overall_match_score"),
+                    "ats_missing_keywords": _as_dict(r.get("ats_report")).get("missing_keywords"),
+                    "critical_gaps": _as_dict(r.get("gap_analysis")).get("critical_gaps"),
+                }
+            )
+        out = {**{k: v for k, v in summary.items() if k != "results"}, "results": slim_results}
         path.write_text(json.dumps(out, indent=2, default=str), encoding="utf-8")
         return path
     except Exception as e:
@@ -589,14 +566,16 @@ def _aggregate_keyword_heatmap(results: list[dict], top_n: int = 15) -> list[dic
     the most postings — so the user knows which master-CV edits unlock the
     most applications. §2.4."""
     from collections import Counter
+
     counter: Counter = Counter()
     samples: dict[str, list[str]] = {}
     for r in results:
         r = _as_dict(r) or {}
         ats = _as_dict(r.get("ats_report"))
-        job_label = (_as_dict(r.get("job")).get("title")
-                     or Path(str(r.get("job_path", ""))).stem)[:40]
-        for kw in (ats.get("missing_keywords") or []):
+        job_label = (_as_dict(r.get("job")).get("title") or Path(str(r.get("job_path", ""))).stem)[
+            :40
+        ]
+        for kw in ats.get("missing_keywords") or []:
             if not isinstance(kw, str) or not kw.strip():
                 continue
             key = kw.strip().lower()
@@ -604,8 +583,7 @@ def _aggregate_keyword_heatmap(results: list[dict], top_n: int = 15) -> list[dic
             samples.setdefault(key, []).append(job_label)
     rows = []
     for key, count in counter.most_common(top_n):
-        rows.append({"keyword": key, "count": count,
-                      "jobs": samples.get(key, [])[:5]})
+        rows.append({"keyword": key, "count": count, "jobs": samples.get(key, [])[:5]})
     return rows
 
 
@@ -613,14 +591,16 @@ def _aggregate_gap_heatmap(results: list[dict], top_n: int = 10) -> list[dict]:
     """Tally critical-gap themes across all jobs so the user can see the
     structural blockers that recur. §2.4."""
     from collections import Counter
+
     counter: Counter = Counter()
     samples: dict[str, list[str]] = {}
     for r in results:
         r = _as_dict(r) or {}
         gap = _as_dict(r.get("gap_analysis"))
-        job_label = (_as_dict(r.get("job")).get("title")
-                     or Path(str(r.get("job_path", ""))).stem)[:40]
-        for g in (gap.get("critical_gaps") or []):
+        job_label = (_as_dict(r.get("job")).get("title") or Path(str(r.get("job_path", ""))).stem)[
+            :40
+        ]
+        for g in gap.get("critical_gaps") or []:
             if not isinstance(g, str) or not g.strip():
                 continue
             # Normalize: lowercase + truncated to first 60 chars as topic key.
@@ -630,8 +610,7 @@ def _aggregate_gap_heatmap(results: list[dict], top_n: int = 10) -> list[dict]:
     rows = []
     for key, count in counter.most_common(top_n):
         if count >= 2:  # only surface gaps that recur
-            rows.append({"gap": key, "count": count,
-                          "jobs": samples.get(key, [])[:5]})
+            rows.append({"gap": key, "count": count, "jobs": samples.get(key, [])[:5]})
     return rows
 
 
@@ -662,10 +641,10 @@ def _build_leaderboard(results: list[dict]) -> list[tuple[str, list[dict]]]:
     """Bucket per-job results into priority groups for the cross-job
     leaderboard. §2.3."""
     buckets: dict[str, list[dict]] = {
-        "apply_first":  [],
+        "apply_first": [],
         "apply_effort": [],
-        "stretch":      [],
-        "skip":         [],
+        "stretch": [],
+        "skip": [],
     }
     for r in results:
         r = _as_dict(r) or {}
@@ -687,9 +666,9 @@ def _build_leaderboard(results: list[dict]) -> list[tuple[str, list[dict]]]:
         buckets[k].sort(key=_leaderboard_sort_key)
     return [
         ("Apply first (high fit, manageable effort)", buckets["apply_first"]),
-        ("Worth applying with effort",                 buckets["apply_effort"]),
-        ("Stretch — only with strong cover letter",    buckets["stretch"]),
-        ("Skip — invest elsewhere",                    buckets["skip"]),
+        ("Worth applying with effort", buckets["apply_effort"]),
+        ("Stretch — only with strong cover letter", buckets["stretch"]),
+        ("Skip — invest elsewhere", buckets["skip"]),
     ]
 
 
@@ -704,6 +683,7 @@ def _write_run_summary_md(summary: dict, output_dir: Path) -> Path | None:
         path = output_dir / "run_summary.pdf"
         lines: list[str] = []
         import datetime as _dt
+
         ts = _dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         lines.append("# 📊 CV Optimizer — Run Summary\n")
@@ -715,11 +695,13 @@ def _write_run_summary_md(summary: dict, output_dir: Path) -> Path | None:
         fail = int(summary.get("jobs_failed", 0) or 0)
         cached = int(summary.get("jobs_skipped_cached", 0) or 0)
         if total > 0 and (succ + fail) == 0:
-            lines.append("> ⚠️ **Tracking failure detected**: "
-                         f"{total} job(s) were in scope but none were "
-                         "counted as succeeded, failed, or cached. Check "
-                         "the per-job output folders for stragglers and "
-                         "re-run with `--rerun-empty` to fill gaps.\n")
+            lines.append(
+                "> ⚠️ **Tracking failure detected**: "
+                f"{total} job(s) were in scope but none were "
+                "counted as succeeded, failed, or cached. Check "
+                "the per-job output folders for stragglers and "
+                "re-run with `--rerun-empty` to fill gaps.\n"
+            )
 
         lines.append("---\n")
         lines.append("## Stats\n")
@@ -751,23 +733,21 @@ def _write_run_summary_md(summary: dict, output_dir: Path) -> Path | None:
                 for n, r in enumerate(bucket, 1):
                     r = _as_dict(r) or {}
                     job = _as_dict(r.get("job"))
-                    title = (job.get("title")
-                              or Path(str(r.get("job_path", ""))).stem
-                              or "—")[:48]
+                    title = (job.get("title") or Path(str(r.get("job_path", ""))).stem or "—")[:48]
                     company = (job.get("company") or "—")[:30]
                     enr = _as_dict(r.get("enrichment"))
                     dec = _as_dict(enr.get("decision_helper"))
                     eff = _as_dict(enr.get("effort_estimate"))
-                    fresh = (enr.get("posting_freshness") or "—")
+                    fresh = enr.get("posting_freshness") or "—"
                     # Strip wordy freshness down to the leading emoji + age.
                     fresh_short = fresh.split(".")[0][:24] if fresh else "—"
                     verdict = dec.get("verdict", "—")
-                    eff_cell = (f"{eff.get('emoji','⚪')} {eff.get('label','—')}"
-                                if eff else "—")
+                    eff_cell = f"{eff.get('emoji', '⚪')} {eff.get('label', '—')}" if eff else "—"
                     output_files = _as_dict(r.get("output_files"))
                     # Prefer PDF; fall back to .md for legacy cached entries.
-                    report_link = (output_files.get("report_pdf")
-                                    or output_files.get("report_markdown") or "")
+                    report_link = (
+                        output_files.get("report_pdf") or output_files.get("report_markdown") or ""
+                    )
                     label = "report.pdf" if output_files.get("report_pdf") else "report.md"
                     open_cell = f"[{label}]({report_link})" if report_link else "—"
                     lines.append(
@@ -783,9 +763,11 @@ def _write_run_summary_md(summary: dict, output_dir: Path) -> Path | None:
             heatmap = _aggregate_keyword_heatmap(results)
             if heatmap:
                 lines.append("## 🎯 Master-CV edits with highest payoff\n")
-                lines.append("_Missing ATS keywords ranked by how many job postings ask for them. "
-                             "Inject these into your master CV once — they unlock multiple "
-                             "applications at the same time._\n")
+                lines.append(
+                    "_Missing ATS keywords ranked by how many job postings ask for them. "
+                    "Inject these into your master CV once — they unlock multiple "
+                    "applications at the same time._\n"
+                )
                 lines.append("| Keyword | Appears in | Example jobs |")
                 lines.append("|---|:-:|---|")
                 for row in heatmap:
@@ -797,8 +779,10 @@ def _write_run_summary_md(summary: dict, output_dir: Path) -> Path | None:
             gap_hm = _aggregate_gap_heatmap(results)
             if gap_hm:
                 lines.append("## 🔍 Recurring blockers across jobs\n")
-                lines.append("_Critical gaps cited on 2+ postings — fix at the source rather "
-                             "than working around them per-application._\n")
+                lines.append(
+                    "_Critical gaps cited on 2+ postings — fix at the source rather "
+                    "than working around them per-application._\n"
+                )
                 for row in gap_hm:
                     lines.append(f"- **{row['count']}× —** {row['gap']}")
                     if row["jobs"]:
@@ -808,16 +792,14 @@ def _write_run_summary_md(summary: dict, output_dir: Path) -> Path | None:
         # ── Per-job at-a-glance: detailed cards, sorted by leaderboard order ─
         if results:
             ordered: list[dict] = []
-            for _label, bucket in (_build_leaderboard(results) or []):
+            for _label, bucket in _build_leaderboard(results) or []:
                 ordered.extend(bucket)
             lines.append("## At a glance — top finding per job\n")
             for i, r in enumerate(ordered, 1):
                 r = _as_dict(r) or {}
                 job = _as_dict(r.get("job"))
-                title = (job.get("title")
-                          or Path(str(r.get("job_path", ""))).stem
-                          or "—")
-                company = (job.get("company") or "—")
+                title = job.get("title") or Path(str(r.get("job_path", ""))).stem or "—"
+                company = job.get("company") or "—"
                 enr = _as_dict(r.get("enrichment"))
                 dec = _as_dict(enr.get("decision_helper"))
                 eff = _as_dict(enr.get("effort_estimate"))
@@ -825,10 +807,12 @@ def _write_run_summary_md(summary: dict, output_dir: Path) -> Path | None:
                 if dec.get("verdict"):
                     lines.append(f"- 🤔 **Verdict:** {dec['verdict']}")
                 if eff:
-                    lines.append(f"- ⏱️ **Effort:** {eff.get('emoji','')} "
-                                  f"{eff.get('band','')} ({eff.get('label','')})")
+                    lines.append(
+                        f"- ⏱️ **Effort:** {eff.get('emoji', '')} "
+                        f"{eff.get('band', '')} ({eff.get('label', '')})"
+                    )
                 rf_found = False
-                for ev in (r.get("evaluations") or []):
+                for ev in r.get("evaluations") or []:
                     ev_d = _as_dict(ev)
                     flags = [f for f in (ev_d.get("red_flags") or []) if isinstance(f, str)]
                     if flags:
@@ -841,22 +825,22 @@ def _write_run_summary_md(summary: dict, output_dir: Path) -> Path | None:
                     if crit:
                         lines.append(f"- 🚩 **Critical gap:** {crit[0]}")
                 cf = _as_dict(r.get("consolidated_feedback"))
-                changes = [c for c in (cf.get("prioritized_changes") or [])
-                           if isinstance(c, dict)]
-                top = next((c for c in changes if (c.get("impact") or "").lower() == "high"),
-                           changes[0] if changes else None)
+                changes = [c for c in (cf.get("prioritized_changes") or []) if isinstance(c, dict)]
+                top = next(
+                    (c for c in changes if (c.get("impact") or "").lower() == "high"),
+                    changes[0] if changes else None,
+                )
                 if top:
                     lines.append(
-                        f"- 📋 **Top edit:** [{top.get('change_type','edit')}] "
-                        f"{top.get('target_section','—')} — {top.get('description','')}"
+                        f"- 📋 **Top edit:** [{top.get('change_type', 'edit')}] "
+                        f"{top.get('target_section', '—')} — {top.get('description', '')}"
                     )
                 ats = _as_dict(r.get("ats_report"))
                 if ats.get("missing_keywords"):
                     kw = ", ".join(f"`{k}`" for k in ats["missing_keywords"][:5])
                     lines.append(f"- 🎯 **Inject keywords:** {kw}")
                 output_files = _as_dict(r.get("output_files"))
-                _link = (output_files.get("report_pdf")
-                          or output_files.get("report_markdown"))
+                _link = output_files.get("report_pdf") or output_files.get("report_markdown")
                 if _link:
                     lines.append(f"- 📄 [Open full report]({_link})")
                 lines.append("")
@@ -874,9 +858,11 @@ def _write_run_summary_md(summary: dict, output_dir: Path) -> Path | None:
         empty_folders = _detect_empty_output_folders(output_dir)
         if empty_folders:
             lines.append("## ⚠️ Empty output folders detected\n")
-            lines.append("_These folders exist but contain no report.md — likely "
-                          "silent failures from a previous run. Re-run with "
-                          "`--rerun-empty` to fill them._\n")
+            lines.append(
+                "_These folders exist but contain no report.md — likely "
+                "silent failures from a previous run. Re-run with "
+                "`--rerun-empty` to fill them._\n"
+            )
             for folder in empty_folders[:20]:
                 lines.append(f"- `{folder}`")
             lines.append("")
@@ -903,6 +889,7 @@ def _write_run_summary_md(summary: dict, output_dir: Path) -> Path | None:
         md_text = "\n".join(lines)
         try:
             from src.pdf_renderer import write_pdf_from_markdown
+
             write_pdf_from_markdown(md_text, path)
         except Exception as pdf_e:
             _warn(f"Could not render run_summary.pdf, falling back to .md: {pdf_e}")
@@ -911,6 +898,7 @@ def _write_run_summary_md(summary: dict, output_dir: Path) -> Path | None:
         return path
     except Exception as e:
         import traceback as _tb
+
         _warn(f"Could not write run summary markdown: {e}")
         _warn("Traceback:\n" + _tb.format_exc())
         return None
@@ -931,10 +919,7 @@ def _detect_empty_output_folders(output_dir: Path) -> list[str]:
                 has_pdf = (job_dir / "report.pdf").exists()
                 has_md = (job_dir / "report.md").exists()
                 has_proposal = (job_dir / "cv_proposal.docx").exists()
-                has_failed = (
-                    (job_dir / "_FAILED.pdf").exists()
-                    or (job_dir / "_FAILED.md").exists()
-                )
+                has_failed = (job_dir / "_FAILED.pdf").exists() or (job_dir / "_FAILED.md").exists()
                 if not (has_pdf or has_md) and not has_proposal and not has_failed:
                     found.append(str(job_dir.relative_to(output_dir)))
     except Exception:
@@ -942,9 +927,9 @@ def _detect_empty_output_folders(output_dir: Path) -> list[str]:
     return found
 
 
-def _filter_jobs_for_rerun(pdfs: list[Path], output_dir: Path,
-                            cv_path: Path, rerun_failed: bool,
-                            rerun_empty: bool) -> list[Path]:
+def _filter_jobs_for_rerun(
+    pdfs: list[Path], output_dir: Path, cv_path: Path, rerun_failed: bool, rerun_empty: bool
+) -> list[Path]:
     """Keep only the jobs whose output folder is empty / failed, when
     --rerun-failed or --rerun-empty is set. §2.5."""
     if not (rerun_failed or rerun_empty):
@@ -970,9 +955,7 @@ def _filter_jobs_for_rerun(pdfs: list[Path], output_dir: Path,
                 if not has_report:
                     is_missing_or_empty = True
                     break
-                if rerun_failed and (
-                    (f / "_FAILED.pdf").exists() or (f / "_FAILED.md").exists()
-                ):
+                if rerun_failed and ((f / "_FAILED.pdf").exists() or (f / "_FAILED.md").exists()):
                     is_missing_or_empty = True
                     break
         if is_missing_or_empty:
@@ -991,8 +974,12 @@ def _open_top_reports(results: list[dict], top_n: int) -> None:
         return
     try:
         import subprocess
-        opener = "open" if sys.platform == "darwin" else (
-            "xdg-open" if sys.platform.startswith("linux") else "start")
+
+        opener = (
+            "open"
+            if sys.platform == "darwin"
+            else ("xdg-open" if sys.platform.startswith("linux") else "start")
+        )
         for r in ordered[:top_n]:
             files = _as_dict(_as_dict(r).get("output_files"))
             # Prefer PDF (the user-facing artifact); fall back to MD.
@@ -1007,7 +994,6 @@ def _open_top_reports(results: list[dict], top_n: int) -> None:
                     _warn(f"Could not open {target}: {e}")
     except Exception as e:
         _warn(f"--open-top failed: {e}")
-
 
 
 def _dry_run(cv_path: Path, pdfs: list[Path], args: argparse.Namespace) -> None:
@@ -1027,10 +1013,11 @@ def _dry_run(cv_path: Path, pdfs: list[Path], args: argparse.Namespace) -> None:
     print("              Quality gates   (with retry — #3)")
     print("    Phase 5 — Output rendering")
     print()
-    print(f"  Estimated cost: $0.30 — $0.50 per job × {len(pdfs)} = "
-          f"${0.30 * len(pdfs):.2f} — ${0.50 * len(pdfs):.2f}")
+    print(
+        f"  Estimated cost: $0.30 — $0.50 per job × {len(pdfs)} = "
+        f"${0.30 * len(pdfs):.2f} — ${0.50 * len(pdfs):.2f}"
+    )
     print("  Run without --dry-run to execute.\n")
 
 
 # ─── Subcommand: search ───────────────────────────────────────────────────
-

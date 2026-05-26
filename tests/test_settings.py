@@ -1,4 +1,5 @@
 """Unit tests for pydantic-settings configuration (B5)."""
+
 from __future__ import annotations
 
 import importlib
@@ -10,6 +11,7 @@ def test_settings_loads_required_anthropic_key(monkeypatch):
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test-123")
     # Force a fresh load
     import src.settings as s
+
     importlib.reload(s)
     cfg = s.Settings()  # type: ignore[call-arg]
     assert cfg.reveal(cfg.anthropic_api_key) == "sk-ant-test-123"
@@ -21,8 +23,9 @@ def test_settings_raises_when_required_missing(monkeypatch):
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     monkeypatch.chdir("/tmp")  # avoid picking up a real .env
     import src.settings as s
+
     importlib.reload(s)
-    with pytest.raises(Exception):
+    with pytest.raises(Exception):  # noqa: B017 — pydantic ValidationError is the expected type
         s.Settings()  # type: ignore[call-arg]
 
 
@@ -33,6 +36,7 @@ def test_optional_keys_default_to_none(monkeypatch, tmp_path):
     # chdir to an empty dir so the real .env is not picked up
     monkeypatch.chdir(tmp_path)
     import src.settings as s
+
     importlib.reload(s)
     cfg = s.Settings()  # type: ignore[call-arg]
     assert cfg.tavily_api_key is None

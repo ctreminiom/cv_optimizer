@@ -4,6 +4,7 @@ We deliberately don't kickoff() — that would call the live Anthropic API.
 We just verify the module imports, the state model is consistent, and the
 file-hash helper is deterministic.
 """
+
 from __future__ import annotations
 
 import hashlib

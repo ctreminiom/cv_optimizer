@@ -5,6 +5,7 @@ literal, or — in pathological cases — a set. These helpers normalise that
 to dict / list / list-of-dict shapes so downstream code can read fields
 without scattering isinstance checks everywhere.
 """
+
 from __future__ import annotations
 
 import json
@@ -27,6 +28,7 @@ def as_dict(value: Any) -> dict:
         except json.JSONDecodeError:
             try:
                 import ast
+
                 parsed = ast.literal_eval(value)
                 if isinstance(parsed, dict):
                     return parsed

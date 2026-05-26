@@ -1,10 +1,10 @@
 """Output generation tools: DOCX and Markdown report writing."""
+
 from __future__ import annotations
 
 import json
 import re
 from pathlib import Path
-from typing import Any
 
 from crewai.tools import tool
 
@@ -12,8 +12,9 @@ __all__ = ["generate_docx_output", "write_job_report"]
 
 
 @tool("generate_docx_output")
-def generate_docx_output(template_path: str, adapted_cv_json: str,
-                         candidate_profile_json: str, output_path: str) -> str:
+def generate_docx_output(
+    template_path: str, adapted_cv_json: str, candidate_profile_json: str, output_path: str
+) -> str:
     """Generates the final adapted CV as DOCX, using the master CV as template.
 
     Args:
@@ -39,9 +40,10 @@ def generate_docx_output(template_path: str, adapted_cv_json: str,
         except (json.JSONDecodeError, TypeError):
             try:
                 import ast
+
                 return ast.literal_eval(value)
             except Exception as e:
-                raise ValueError(f"could not parse {key}: {e}")
+                raise ValueError(f"could not parse {key}: {e}") from e
 
     try:
         adapted_cv = _parse(adapted_cv_json, "adapted_cv_json")
@@ -75,8 +77,16 @@ def generate_docx_output(template_path: str, adapted_cv_json: str,
 
         doc.add_heading(profile.get("full_name", ""), level=0)
         contact = profile.get("contact", {})
-        contact_line = " | ".join(v for v in [contact.get("email"), contact.get("phone"),
-                                              contact.get("linkedin"), contact.get("location")] if v)
+        contact_line = " | ".join(
+            v
+            for v in [
+                contact.get("email"),
+                contact.get("phone"),
+                contact.get("linkedin"),
+                contact.get("location"),
+            ]
+            if v
+        )
         if contact_line:
             doc.add_paragraph(contact_line)
 
@@ -94,7 +104,7 @@ def generate_docx_output(template_path: str, adapted_cv_json: str,
         if profile.get("education"):
             doc.add_heading("Education", level=1)
             for edu in profile["education"]:
-                line = f"{edu.get('degree','')}, {edu.get('institution','')}"
+                line = f"{edu.get('degree', '')}, {edu.get('institution', '')}"
                 if edu.get("end_date"):
                     line += f" — {edu['end_date']}"
                 doc.add_paragraph(line)
@@ -118,6 +128,7 @@ def _wordlevel_diff(before: str, after: str) -> str:
     runs and bold on added runs. Reads much faster than a two-paragraph
     before/after stack when bullets are long. §1.4."""
     from difflib import SequenceMatcher
+
     a = (before or "").split()
     b = (after or "").split()
     if not a and not b:
@@ -169,6 +180,7 @@ def write_job_report(report_json: str, output_path: str) -> str:
                 report = json.loads(report_json)
             except json.JSONDecodeError:
                 import ast
+
                 report = ast.literal_eval(report_json)
         if "report" in report and isinstance(report["report"], dict):
             # Allow the legacy nested form {"report": {...}, "output_path": ...}
@@ -185,9 +197,12 @@ def write_job_report(report_json: str, output_path: str) -> str:
     # that isn't a dict/list as empty rather than crashing.
     def _D(v):
         return v if isinstance(v, dict) else ({} if v is None else (v if False else {}))
+
     def _L(v):
-        if isinstance(v, list): return v
+        if isinstance(v, list):
+            return v
         return []
+
     def _LD(v):
         return [x for x in _L(v) if isinstance(x, dict)]
 
@@ -204,16 +219,61 @@ def write_job_report(report_json: str, output_path: str) -> str:
     # so different phrasings of the same finding collapse onto one entry.
     # ──────────────────────────────────────────────────────────────────────
     _STOPWORDS = {
-        "the", "a", "an", "is", "in", "on", "of", "to", "for", "with",
-        "and", "or", "as", "by", "be", "are", "this", "that", "her",
-        "his", "their", "from", "at", "than", "not", "no", "but",
-        "candidate", "she", "he", "her", "his", "have", "has", "had",
-        "may", "could", "would", "will", "which", "while", "el", "la",
-        "los", "las", "de", "del", "y", "en", "un", "una", "que",
+        "the",
+        "a",
+        "an",
+        "is",
+        "in",
+        "on",
+        "of",
+        "to",
+        "for",
+        "with",
+        "and",
+        "or",
+        "as",
+        "by",
+        "be",
+        "are",
+        "this",
+        "that",
+        "her",
+        "his",
+        "their",
+        "from",
+        "at",
+        "than",
+        "not",
+        "no",
+        "but",
+        "candidate",
+        "she",
+        "he",
+        "have",
+        "has",
+        "had",
+        "may",
+        "could",
+        "would",
+        "will",
+        "which",
+        "while",
+        "el",
+        "la",
+        "los",
+        "las",
+        "de",
+        "del",
+        "y",
+        "en",
+        "un",
+        "una",
+        "que",
     }
 
     def _significant_tokens(s: str) -> set:
         import re as _re
+
         x = (s or "").lower()
         # Strip the leading reviewer label that _collect_red_flags adds.
         x = _re.sub(r"^_[^_]+_:\s*", "", x)
@@ -238,6 +298,7 @@ def write_job_report(report_json: str, output_path: str) -> str:
 
     def _build_canonical_blockers() -> list[dict]:
         blockers: list[dict] = []
+
         def _merge_or_add(text: str, kind: str, flagger: str) -> None:
             if not text or not text.strip():
                 return
@@ -252,18 +313,17 @@ def write_job_report(report_json: str, output_path: str) -> str:
                     return
             blockers.append({"text": text, "kind": kind, "flagged_by": [flagger]})
 
-        for g in (_D(report.get("gap_analysis")).get("critical_gaps") or []):
+        for g in _D(report.get("gap_analysis")).get("critical_gaps") or []:
             if isinstance(g, str):
                 _merge_or_add(g, "gap", "Gap analysis")
         for ev in _LD(report.get("evaluations")):
             reviewer = ev.get("agent_role", "Reviewer")
-            for f in (ev.get("red_flags") or []):
+            for f in ev.get("red_flags") or []:
                 if isinstance(f, str):
                     _merge_or_add(f, "red_flag", reviewer)
 
         # Sort: more flaggers first, then gaps before red_flags.
-        blockers.sort(key=lambda b: (-len(b["flagged_by"]),
-                                        0 if b["kind"] == "gap" else 1))
+        blockers.sort(key=lambda b: (-len(b["flagged_by"]), 0 if b["kind"] == "gap" else 1))
         return blockers
 
     canonical_blockers = _build_canonical_blockers()
@@ -281,14 +341,14 @@ def write_job_report(report_json: str, output_path: str) -> str:
     def _collect_red_flags() -> list[str]:
         out: list[str] = []
         for ev in _LD(report.get("evaluations")):
-            for f in (ev.get("red_flags") or []):
+            for f in ev.get("red_flags") or []:
                 if isinstance(f, str):
                     out.append(f"_{ev.get('agent_role', 'Reviewer')}_: {f}")
             for w in (ev.get("weaknesses") or [])[:2]:
                 if isinstance(w, str):
                     out.append(f"_{ev.get('agent_role', 'Reviewer')}_: {w}")
         gap_d = _D(report.get("gap_analysis"))
-        for g in (gap_d.get("critical_gaps") or []):
+        for g in gap_d.get("critical_gaps") or []:
             if isinstance(g, str):
                 out.append(f"_Gap analysis_: {g}")
         # Dedup while preserving order.
@@ -305,10 +365,6 @@ def write_job_report(report_json: str, output_path: str) -> str:
     # section headers (not inline, not on impact labels). Sections aim to
     # be concise — one beat per bullet, nest only when it adds context.
     # ──────────────────────────────────────────────────────────────────────
-    badge = enrichment.get("status_badge") or ("", "Unassessed", "")
-    badge_label = badge[1] if len(badge) > 1 else "Unassessed"
-    badge_note = badge[2] if len(badge) > 2 else ""
-
     md.append("# Resume Recommendation Report")
     md.append(f"## {job.get('title') or 'Role'} @ {job.get('company') or 'Company'}\n")
 
@@ -317,8 +373,10 @@ def write_job_report(report_json: str, output_path: str) -> str:
     if tldr:
         md.append("> **TL;DR — should you apply?**")
         md.append(">")
-        md.append(f"> - **Verdict:** {tldr.get('verdict','—')}"
-                   + (f" — _{tldr['verdict_reason']}_" if tldr.get("verdict_reason") else ""))
+        md.append(
+            f"> - **Verdict:** {tldr.get('verdict', '—')}"
+            + (f" — _{tldr['verdict_reason']}_" if tldr.get("verdict_reason") else "")
+        )
         eff_band = tldr.get("effort_band", "—")
         eff_label = tldr.get("effort_label", "—")
         eff_emoji = tldr.get("effort_emoji", "")
@@ -409,14 +467,18 @@ def write_job_report(report_json: str, output_path: str) -> str:
 
         # Do: mirror strong verbs from the JD.
         if strong:
-            dos.append("Mirror the JD's strong verbs in your bullets: "
-                       + ", ".join(f"`{v}`" for v in strong[:8]))
+            dos.append(
+                "Mirror the JD's strong verbs in your bullets: "
+                + ", ".join(f"`{v}`" for v in strong[:8])
+            )
 
         # Do: inject the top missing ATS keywords.
         missing_kw = ats_d.get("missing_keywords") or []
         if missing_kw:
-            dos.append("Weave these missing ATS terms into your summary and bullets: "
-                       + ", ".join(f"`{k}`" for k in missing_kw[:10]))
+            dos.append(
+                "Weave these missing ATS terms into your summary and bullets: "
+                + ", ".join(f"`{k}`" for k in missing_kw[:10])
+            )
 
         # Do: address critical gaps explicitly (acknowledge + reframe).
         for g in (gap_d.get("critical_gaps") or [])[:3]:
@@ -432,8 +494,10 @@ def write_job_report(report_json: str, output_path: str) -> str:
         # Don't: overused keywords (variety beats repetition for ATS too).
         over = ats_d.get("overused_keywords") or []
         if over:
-            donts.append("Don't keep repeating the same terms — vary: "
-                         + ", ".join(f"`{k}`" for k in over[:6]))
+            donts.append(
+                "Don't keep repeating the same terms — vary: "
+                + ", ".join(f"`{k}`" for k in over[:6])
+            )
 
         # Don't: red flags from reviewers (top ones).
         for rf in _collect_red_flags()[:5]:
@@ -478,8 +542,9 @@ def write_job_report(report_json: str, output_path: str) -> str:
             real_donts.append(f"Avoid weak phrasing — drop {phrases}")
     over = ats_d_for_donts.get("overused_keywords") or []
     if over:
-        real_donts.append("Don't keep repeating the same terms — vary: "
-                          + ", ".join(f"`{k}`" for k in over[:6]))
+        real_donts.append(
+            "Don't keep repeating the same terms — vary: " + ", ".join(f"`{k}`" for k in over[:6])
+        )
     verification = _D(report.get("verification_report"))
     flagged_claims = verification.get("flagged_claims") or verification.get("issues") or []
     for fc in (flagged_claims if isinstance(flagged_claims, list) else [])[:3]:
@@ -512,7 +577,7 @@ def write_job_report(report_json: str, output_path: str) -> str:
     qmatch = enrichment.get("qualitative_match") or []
     body: list[str] = []
     for row in qmatch:
-        body.append(f"- **{row.get('category','—')}** — {row.get('band','—')}")
+        body.append(f"- **{row.get('category', '—')}** — {row.get('band', '—')}")
         sig = (row.get("signal") or "").strip()
         if sig:
             body.append(f"  - {sig}")
@@ -542,8 +607,10 @@ def write_job_report(report_json: str, output_path: str) -> str:
     # red_flag lists + duplicated Gap Analysis prose.
     body = []
     if canonical_blockers:
-        body.append(f"- _Each blocker is shown once. \"Flagged by:\" tells you "
-                    f"how many reviewers raised it (of {max(len(reviewer_roles),1)})._")
+        body.append(
+            f'- _Each blocker is shown once. "Flagged by:" tells you '
+            f"how many reviewers raised it (of {max(len(reviewer_roles), 1)})._"
+        )
         for b in canonical_blockers:
             flaggers = ", ".join(b["flagged_by"])
             n = len(b["flagged_by"])
@@ -569,7 +636,10 @@ def write_job_report(report_json: str, output_path: str) -> str:
         docx_path = proposal_analysis.get("docx_path") or ""
         if docx_path:
             from pathlib import Path as _P
-            body.append(f"- **File:** `{_P(docx_path).name}` — open `cv_proposal.docx` next to this report.")
+
+            body.append(
+                f"- **File:** `{_P(docx_path).name}` — open `cv_proposal.docx` next to this report."
+            )
         highlights = proposal_analysis.get("highlights") or []
         if highlights:
             body.append("- **What's in the proposal:**")
@@ -589,12 +659,13 @@ def write_job_report(report_json: str, output_path: str) -> str:
                 body.append(f"    - After: {after}")
         covered = proposal_analysis.get("keywords_covered") or []
         if covered:
-            body.append("- **ATS keywords woven in:** "
-                        + ", ".join(f"`{k}`" for k in covered[:20]))
+            body.append("- **ATS keywords woven in:** " + ", ".join(f"`{k}`" for k in covered[:20]))
         still_missing = proposal_analysis.get("keywords_still_missing") or []
         if still_missing:
-            body.append("- **Keywords still missing (acquire evidence before claiming):** "
-                        + ", ".join(f"`{k}`" for k in still_missing[:15]))
+            body.append(
+                "- **Keywords still missing (acquire evidence before claiming):** "
+                + ", ".join(f"`{k}`" for k in still_missing[:15])
+            )
         action_plan = proposal_analysis.get("action_plan") or []
         if action_plan:
             body.append("- **Action plan — finish these before submitting:**")
@@ -621,7 +692,11 @@ def write_job_report(report_json: str, output_path: str) -> str:
         by_impact = {"high": [], "medium": [], "low": []}
         for ch in changes:
             by_impact.setdefault((ch.get("impact") or "medium").lower(), []).append(ch)
-        for level, label in (("high", "High impact"), ("medium", "Medium impact"), ("low", "Low impact")):
+        for level, label in (
+            ("high", "High impact"),
+            ("medium", "Medium impact"),
+            ("low", "Low impact"),
+        ):
             if not by_impact.get(level):
                 continue
             body.append(f"- **{label}**")
@@ -690,8 +765,10 @@ def write_job_report(report_json: str, output_path: str) -> str:
     if quant:
         body.append("- Bullets missing metrics — add a number where you can:")
         for q in quant:
-            body.append(f"  - **{q.get('title','')}, {q.get('company','')}** — {q.get('bullet','')}")
-    elif (candidate.get("work_experience") or []):
+            body.append(
+                f"  - **{q.get('title', '')}, {q.get('company', '')}** — {q.get('bullet', '')}"
+            )
+    elif candidate.get("work_experience") or []:
         # Positive empty state — only meaningful if there ARE bullets to audit.
         body = ["- Every bullet already has a metric."]
     _section("🔢 Quantification Audit", body)
@@ -709,11 +786,11 @@ def write_job_report(report_json: str, output_path: str) -> str:
     body = []
     if weak:
         for w in weak:
-            body.append(f"- _{w.get('bullet','')}_")
+            body.append(f"- _{w.get('bullet', '')}_")
             wp = ", ".join(f"`{p}`" for p in (w.get("weak_phrases") or []))
             sg = ", ".join(f"`{s}`" for s in (w.get("suggestions") or []))
             body.append(f"  - Replace {wp} → {sg}")
-    elif (candidate.get("work_experience") or []):
+    elif candidate.get("work_experience") or []:
         body = ["- No weak phrasing detected."]
     _section("🪶 Weak Phrases to Replace", body)
 
@@ -746,8 +823,10 @@ def write_job_report(report_json: str, output_path: str) -> str:
             body.append(f"  - {line}")
     if cl_body_text:
         body.append("")
-        body.append("<details><summary>📝 Show generated cover letter draft "
-                    "(also saved as `cover_letter.pdf`)</summary>")
+        body.append(
+            "<details><summary>📝 Show generated cover letter draft "
+            "(also saved as `cover_letter.pdf`)</summary>"
+        )
         body.append("")
         for line in cl_body_text.splitlines():
             line = line.strip()
@@ -768,7 +847,7 @@ def write_job_report(report_json: str, output_path: str) -> str:
     iq = _LD(report.get("interview_questions"))
     body = []
     for q in iq:
-        body.append(f"- **{q.get('question','')}**")
+        body.append(f"- **{q.get('question', '')}**")
         if q.get("reasoning"):
             body.append(f"  - Why: {q['reasoning']}")
         if q.get("suggested_angle"):
@@ -844,7 +923,7 @@ def write_job_report(report_json: str, output_path: str) -> str:
 
     so = _D(report.get("second_opinion"))
     if so and so.get("triggered") and so.get("rationale"):
-        _section("⚖️ Second Opinion", [f"> {so.get('rationale','')}"])
+        _section("⚖️ Second Opinion", [f"> {so.get('rationale', '')}"])
 
     # ── 💰 Compensation Reference — §1.7 ──────────────────────────────────
     body = []
@@ -890,10 +969,22 @@ def write_job_report(report_json: str, output_path: str) -> str:
 
     # ── 💼 Job Posting Reference ──────────────────────────────────────────
     body = []
-    if job and any(job.get(k) for k in ("title", "company", "location", "modality",
-                                          "seniority", "salary_range", "role_type",
-                                          "tech_stack", "ats_keywords", "responsibilities",
-                                          "requirements")):
+    if job and any(
+        job.get(k)
+        for k in (
+            "title",
+            "company",
+            "location",
+            "modality",
+            "seniority",
+            "salary_range",
+            "role_type",
+            "tech_stack",
+            "ats_keywords",
+            "responsibilities",
+            "requirements",
+        )
+    ):
         md.append("---\n")
         for k_label, v in (
             ("Title", job.get("title", "")),
@@ -911,8 +1002,7 @@ def write_job_report(report_json: str, output_path: str) -> str:
         if job.get("tech_stack"):
             body.append("- **Tech stack:** " + ", ".join(job["tech_stack"]))
         if job.get("ats_keywords"):
-            body.append("- **ATS keywords (job posting):** "
-                        + ", ".join(job["ats_keywords"][:25]))
+            body.append("- **ATS keywords (job posting):** " + ", ".join(job["ats_keywords"][:25]))
         if job.get("responsibilities"):
             body.append("- **Key responsibilities:**")
             for r in job["responsibilities"][:8]:
@@ -936,10 +1026,13 @@ def write_job_report(report_json: str, output_path: str) -> str:
     # `parsed_resume.json` next to this report by the orchestrator. Keep the
     # markdown rendition concise.
     body = []
-    body.append("<details><summary>👤 Show parsed resume (also saved as "
-                "`parsed_resume.json`)</summary>\n")
-    body.append("_Source of truth: the parsed CV the reviewers actually "
-                "scored against. Verify before submitting._\n")
+    body.append(
+        "<details><summary>👤 Show parsed resume (also saved as `parsed_resume.json`)</summary>\n"
+    )
+    body.append(
+        "_Source of truth: the parsed CV the reviewers actually "
+        "scored against. Verify before submitting._\n"
+    )
     if candidate.get("source_file"):
         body.append(f"- **Parsed from:** `{candidate['source_file']}`")
 
@@ -969,6 +1062,7 @@ def write_job_report(report_json: str, output_path: str) -> str:
         if isinstance(s, dict):
             return (s.get("name") or s.get("skill") or s.get("label") or "").strip()
         return ""
+
     skills = [v for v in (_fmt_skill(s) for s in (candidate.get("skills") or [])) if v]
     if skills:
         body.append(f"- **Skills ({len(skills)}):**")
@@ -976,15 +1070,18 @@ def write_job_report(report_json: str, output_path: str) -> str:
     else:
         body.append("- **Skills:** _not parsed_")
 
-    def _fmt_language(l):
-        if isinstance(l, str):
-            return l
-        if isinstance(l, dict):
-            name = l.get("language") or l.get("name") or ""
-            prof = l.get("proficiency") or l.get("fluency") or l.get("level") or ""
+    def _fmt_language(lang):
+        if isinstance(lang, str):
+            return lang
+        if isinstance(lang, dict):
+            name = lang.get("language") or lang.get("name") or ""
+            prof = lang.get("proficiency") or lang.get("fluency") or lang.get("level") or ""
             return f"{name} — {prof}" if (name and prof) else (name or prof)
         return ""
-    languages = [s for s in (_fmt_language(l) for l in (candidate.get("languages") or [])) if s]
+
+    languages = [
+        s for s in (_fmt_language(lang) for lang in (candidate.get("languages") or [])) if s
+    ]
     if languages:
         body.append("- **Languages:** " + ", ".join(languages))
 
@@ -998,6 +1095,7 @@ def write_job_report(report_json: str, output_path: str) -> str:
             parts = [p for p in [name, org, date] if p and p != "unknown"]
             return " — ".join(parts) if parts else ""
         return ""
+
     certs = [s for s in (_fmt_cert(c) for c in (candidate.get("certifications") or [])) if s]
     if certs:
         body.append("- **Certifications:**")
@@ -1015,7 +1113,7 @@ def write_job_report(report_json: str, output_path: str) -> str:
             loc = w.get("location") or ""
             period = f"{start} – {end}" + (f", {loc}" if loc else "")
             body.append(f"  - **{t} — {co}** _{period}_")
-            for b in (w.get("bullets") or w.get("achievements") or w.get("responsibilities") or []):
+            for b in w.get("bullets") or w.get("achievements") or w.get("responsibilities") or []:
                 if isinstance(b, str) and b.strip():
                     body.append(f"    - {b}")
                 elif isinstance(b, dict):
@@ -1054,11 +1152,12 @@ def write_job_report(report_json: str, output_path: str) -> str:
 
     # ── Footer ───────────────────────────────────────────────────────────
     md.append("---\n")
-    md.append("_This report was generated by **CV Optimizer** — an automated "
-              "multi-agent analysis. The recommendations are starting points; "
-              "always tailor edits to your authentic experience._\n")
+    md.append(
+        "_This report was generated by **CV Optimizer** — an automated "
+        "multi-agent analysis. The recommendations are starting points; "
+        "always tailor edits to your authentic experience._\n"
+    )
 
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
     Path(output_path).write_text("\n".join(md), encoding="utf-8")
     return json.dumps({"status": "ok", "output_path": output_path})
-

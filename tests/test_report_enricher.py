@@ -1,20 +1,20 @@
 """Tests for src/report/enricher.py (Phase 3c extraction)."""
+
 from __future__ import annotations
 
 import json
-import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
 from src.report.enricher import (
-    decision_helper_with_opus,
     classify_match_with_opus,
+    decision_helper_with_opus,
     posting_freshness,
     prescreen_with_haiku,
 )
 
-
 # ── posting_freshness ─────────────────────────────────────────────────────────
+
 
 def test_posting_freshness_no_file_returns_dash() -> None:
     result = posting_freshness(Path("/nonexistent/file.md"))
@@ -45,6 +45,7 @@ def test_posting_freshness_pdf_uses_mtime(tmp_path) -> None:
 
 # ── decision_helper_with_opus ─────────────────────────────────────────────────
 
+
 def test_decision_helper_falls_back_on_client_failure() -> None:
     report = {
         "job": {"title": "SWE", "company": "ACME"},
@@ -62,17 +63,21 @@ def test_decision_helper_falls_back_on_client_failure() -> None:
 def test_decision_helper_uses_injected_response() -> None:
     from tests.test_llm_client import _MockClient
 
-    verdict_json = json.dumps({
-        "verdict": "✅ Apply — strong candidate",
-        "reason": "Strong Go background matches the stack.",
-        "pros": ["10 years Go experience"],
-        "cons": ["Missing Kubernetes certification"],
-    })
+    verdict_json = json.dumps(
+        {
+            "verdict": "✅ Apply — strong candidate",
+            "reason": "Strong Go background matches the stack.",
+            "pros": ["10 years Go experience"],
+            "cons": ["Missing Kubernetes certification"],
+        }
+    )
     mock = _MockClient(response=verdict_json)
 
     report = {
         "job": {"title": "Backend Eng", "company": "X"},
-        "evaluations": [{"agent_role": "HR", "strengths": ["Go"], "weaknesses": [], "red_flags": []}],
+        "evaluations": [
+            {"agent_role": "HR", "strengths": ["Go"], "weaknesses": [], "red_flags": []}
+        ],
         "gap_analysis": {"critical_gaps": [], "minor_gaps": []},
         "ats_report": {"missing_keywords": []},
         "consolidated_feedback": {"common_strengths": [], "common_weaknesses": []},
@@ -87,6 +92,7 @@ def test_decision_helper_uses_injected_response() -> None:
 
 # ── classify_match_with_opus ──────────────────────────────────────────────────
 
+
 def test_classify_match_falls_back_on_client_failure() -> None:
     evs = [{"agent_role": "HR", "strengths": ["Go"], "weaknesses": []}]
     with patch("src.llm.client.get_default_client", side_effect=Exception("no key")):
@@ -96,6 +102,7 @@ def test_classify_match_falls_back_on_client_failure() -> None:
 
 def test_classify_match_empty_evaluations_returns_empty() -> None:
     from tests.test_llm_client import _MockClient
+
     mock = _MockClient(response="[]")
     with patch("src.llm.client.get_default_client", return_value=mock):
         result = classify_match_with_opus([], {}, {}, {})
@@ -103,6 +110,7 @@ def test_classify_match_empty_evaluations_returns_empty() -> None:
 
 
 # ── prescreen_with_haiku ──────────────────────────────────────────────────────
+
 
 def test_prescreen_falls_open_on_client_failure(tmp_path) -> None:
     cv = tmp_path / "cv.md"

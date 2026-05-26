@@ -1,4 +1,5 @@
 """Tests for src/pipeline/url_filters.py."""
+
 from __future__ import annotations
 
 from src.pipeline.url_filters import (
@@ -24,13 +25,16 @@ def test_is_user_or_company_profile_passes_job_url():
 
 
 def test_is_linkedin_category_aggregator_catches_search_pages():
-    assert is_linkedin_category_aggregator(
-        "https://linkedin.com/jobs/project-manager-jobs-costa-rica") is True
+    assert (
+        is_linkedin_category_aggregator("https://linkedin.com/jobs/project-manager-jobs-costa-rica")
+        is True
+    )
 
 
 def test_is_linkedin_category_aggregator_passes_search_endpoint():
-    assert is_linkedin_category_aggregator(
-        "https://linkedin.com/jobs/search?keywords=python") is False
+    assert (
+        is_linkedin_category_aggregator("https://linkedin.com/jobs/search?keywords=python") is False
+    )
 
 
 def test_normalize_source_from_url():
@@ -40,8 +44,7 @@ def test_normalize_source_from_url():
 
 
 def test_url_slug_tokens_skips_stopwords_and_numeric_ids():
-    tokens = url_slug_tokens(
-        "https://example.com/jobs/view/senior-go-engineer-at-acme-4260834487")
+    tokens = url_slug_tokens("https://example.com/jobs/view/senior-go-engineer-at-acme-4260834487")
     assert "senior" in tokens
     assert "engineer" in tokens
     # Stopwords ("at", "view", "jobs") must be filtered out
@@ -76,18 +79,22 @@ def test_is_location_relevant_remote_keyword():
 
 def test_content_matches_url_slug_validates_slug_tokens():
     url = "https://example.com/jobs/senior-python-engineer-12345"
-    matching_body = ("Senior Python Engineer\nWe're hiring a senior python engineer "
-                     "to lead our backend team. The engineer will own service design.")
+    matching_body = (
+        "Senior Python Engineer\nWe're hiring a senior python engineer "
+        "to lead our backend team. The engineer will own service design."
+    )
     assert content_matches_url_slug(matching_body, url) is True
     assert content_matches_url_slug("Unrelated content about anything else", url) is False
 
 
 def test_summarize_extracted_content_trims_and_cleans():
-    raw = ("Cookie banner here\n"
-           "We use cookies on this site\n"
-           "We're hiring a Senior Backend Engineer to build distributed payment "
-           "systems handling millions of transactions per day. You'll partner with "
-           "product and data teams. Strong Go and PostgreSQL experience required.")
+    raw = (
+        "Cookie banner here\n"
+        "We use cookies on this site\n"
+        "We're hiring a Senior Backend Engineer to build distributed payment "
+        "systems handling millions of transactions per day. You'll partner with "
+        "product and data teams. Strong Go and PostgreSQL experience required."
+    )
     out = summarize_extracted_content(raw, max_chars=600)
     assert "Senior Backend Engineer" in out
     assert "cookie" not in out.lower()

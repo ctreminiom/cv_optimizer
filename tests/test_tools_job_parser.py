@@ -1,11 +1,11 @@
 """Tests for the job parser tool."""
+
 from __future__ import annotations
 
 import json
 import tempfile
-from pathlib import Path
 
-from src.tools.job_parser import parse_job_pdf, _split_markdown_job
+from src.tools.job_parser import _split_markdown_job, parse_job_pdf
 
 
 def test_parse_job_pdf_missing_file() -> None:

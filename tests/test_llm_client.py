@@ -3,6 +3,7 @@
 The key property: every function that calls the Anthropic API accepts an
 injected `client` parameter so tests never touch the network.
 """
+
 from __future__ import annotations
 
 import json
@@ -12,8 +13,8 @@ import pytest
 
 from src.llm.client import LLMClientProtocol, _AnthropicClient, get_default_client
 
-
 # ── Shared test double ──────────────────────────────────────────────────────
+
 
 class _MockClient:
     """Minimal LLMClientProtocol implementation; records calls for assertions."""
@@ -22,14 +23,13 @@ class _MockClient:
         self.calls: list[dict] = []
         self._response = response
 
-    def complete(self, *, model: str, max_tokens: int,
-                 messages: list) -> str:
-        self.calls.append({"model": model, "max_tokens": max_tokens,
-                           "messages": messages})
+    def complete(self, *, model: str, max_tokens: int, messages: list) -> str:
+        self.calls.append({"model": model, "max_tokens": max_tokens, "messages": messages})
         return self._response
 
 
 # ── Protocol conformance ────────────────────────────────────────────────────
+
 
 def test_mock_client_satisfies_protocol() -> None:
     assert isinstance(_MockClient(), LLMClientProtocol)
@@ -43,6 +43,7 @@ def test_anthropic_client_satisfies_protocol() -> None:
 
 
 # ── _AnthropicClient unit tests ─────────────────────────────────────────────
+
 
 def test_anthropic_client_wraps_create() -> None:
     fake_resp = MagicMock()
@@ -79,20 +80,23 @@ def test_anthropic_client_empty_content_returns_empty_string() -> None:
 
 # ── Injection tests — call sites use the injected client ───────────────────
 
+
 def test_extract_job_info_uses_injected_client() -> None:
     from src.tools.job_parser import _extract_job_info_with_claude
 
-    payload = json.dumps({
-        "title": "Software Engineer",
-        "company": "Acme Corp",
-        "location": "Remote",
-        "modality": "remote",
-        "seniority": "senior",
-        "salary_range": None,
-        "role_type": "backend_engineer",
-        "tech_stack": ["Go", "Kubernetes"],
-        "ats_keywords": ["Go", "Kubernetes", "gRPC"],
-    })
+    payload = json.dumps(
+        {
+            "title": "Software Engineer",
+            "company": "Acme Corp",
+            "location": "Remote",
+            "modality": "remote",
+            "seniority": "senior",
+            "salary_range": None,
+            "role_type": "backend_engineer",
+            "tech_stack": ["Go", "Kubernetes"],
+            "ats_keywords": ["Go", "Kubernetes", "gRPC"],
+        }
+    )
     mock = _MockClient(response=payload)
 
     result = _extract_job_info_with_claude("some job text", client=mock)
@@ -116,16 +120,25 @@ def test_extract_job_info_returns_empty_on_client_failure() -> None:
 def test_llm_judge_uses_injected_client() -> None:
     from src.search_pipeline import llm_judge
 
-    verdict = json.dumps({
-        "role_match": {"pass": 1, "reason": "ok"},
-        "seniority_match": {"pass": 1, "reason": "ok"},
-        "modality_match": {"pass": 1, "reason": "ok"},
-        "location_match": {"pass": 1, "reason": "ok"},
-        "fails_count": 0,
-    })
+    verdict = json.dumps(
+        {
+            "role_match": {"pass": 1, "reason": "ok"},
+            "seniority_match": {"pass": 1, "reason": "ok"},
+            "modality_match": {"pass": 1, "reason": "ok"},
+            "location_match": {"pass": 1, "reason": "ok"},
+            "fails_count": 0,
+        }
+    )
     mock = _MockClient(response=verdict)
-    ops = [{"title": "Backend Eng", "company": "X", "location": "Remote",
-            "modality": "remote", "url": "https://x.com/1"}]
+    ops = [
+        {
+            "title": "Backend Eng",
+            "company": "X",
+            "location": "Remote",
+            "modality": "remote",
+            "url": "https://x.com/1",
+        }
+    ]
 
     result = llm_judge(
         ops,
@@ -165,8 +178,7 @@ def test_llm_judge_falls_back_when_no_client_available() -> None:
     from src.search_pipeline import llm_judge
 
     ops = [{"title": "Dev", "company": "Y", "url": "https://y.com/1"}]
-    with patch("src.llm.client.get_default_client",
-               side_effect=Exception("no key")):
+    with patch("src.llm.client.get_default_client", side_effect=Exception("no key")):
         result = llm_judge(
             ops,
             target_role="developer",
@@ -179,13 +191,13 @@ def test_llm_judge_falls_back_when_no_client_available() -> None:
 
 # ── get_default_client factory ──────────────────────────────────────────────
 
+
 def test_get_default_client_raises_on_settings_failure() -> None:
     """get_default_client propagates any exception from get_settings().
 
     get_settings is imported inline inside get_default_client, so patch
     the singleton at its canonical location.
     """
-    with patch("src.settings.get_settings",
-               side_effect=ValueError("ANTHROPIC_API_KEY missing")):
+    with patch("src.settings.get_settings", side_effect=ValueError("ANTHROPIC_API_KEY missing")):
         with pytest.raises(ValueError, match="ANTHROPIC_API_KEY missing"):
             get_default_client()

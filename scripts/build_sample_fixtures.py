@@ -11,6 +11,7 @@ Run with:
 Only writes to fixture paths under cv/, jobs/, and eval/examples/sample/.
 Intended for CI bootstrap and the README walkthrough — not user data.
 """
+
 from __future__ import annotations
 
 import json
@@ -60,9 +61,12 @@ def render_markdown_to_pdf(md_path: Path, pdf_path: Path) -> None:
             flowables.append(Spacer(1, 6))
 
     doc = SimpleDocTemplate(
-        str(pdf_path), pagesize=LETTER,
-        leftMargin=0.75 * inch, rightMargin=0.75 * inch,
-        topMargin=0.75 * inch, bottomMargin=0.75 * inch,
+        str(pdf_path),
+        pagesize=LETTER,
+        leftMargin=0.75 * inch,
+        rightMargin=0.75 * inch,
+        topMargin=0.75 * inch,
+        bottomMargin=0.75 * inch,
     )
     doc.build(flowables)
 

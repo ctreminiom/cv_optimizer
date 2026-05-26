@@ -12,11 +12,11 @@ Usage:
         embedder=embedder_config(),
     )
 """
+
 from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import List
 
 _KB_DIR = Path(__file__).resolve().parent / "knowledge_bases"
 
@@ -39,12 +39,13 @@ def embedder_config() -> dict:
         }
     return {
         "provider": "huggingface",
-        "config": {"model": os.getenv("CREW_EMBEDDING_MODEL",
-                                       "sentence-transformers/all-MiniLM-L6-v2")},
+        "config": {
+            "model": os.getenv("CREW_EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
+        },
     }
 
 
-def knowledge_sources_for(role_type: str) -> List:
+def knowledge_sources_for(role_type: str) -> list:
     """Return JSONKnowledgeSource instances for a given role_type.
 
     role_type is a canonical token like "backend_engineer", "project_manager",

@@ -9,9 +9,10 @@ v2 additions:
   • Job search results (search subcommand)
   • Eval set entries (#7)
 """
+
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -49,6 +50,7 @@ __all__ = [
 
 # ─── Job posting ──────────────────────────────────────────────────────────
 
+
 class JobRequirement(BaseModel):
     text: str
     category: Literal["technical", "soft", "experience", "education", "language", "other"]
@@ -73,6 +75,7 @@ class JobPosting(BaseModel):
 
 
 # ─── CV ───────────────────────────────────────────────────────────────────
+
 
 class WorkExperience(BaseModel):
     company: str
@@ -120,6 +123,7 @@ class VoiceSignature(BaseModel):
 
 # ─── Evaluation ───────────────────────────────────────────────────────────
 
+
 class AgentEvaluation(BaseModel):
     agent_role: str
     fit_score: int = Field(ge=0, le=100, default=50)
@@ -162,6 +166,7 @@ class CompetitorProfile(BaseModel):
 
 # ─── Synthesis ────────────────────────────────────────────────────────────
 
+
 class PrioritizedChange(BaseModel):
     target_section: str = ""
     change_type: Literal["add", "remove", "rewrite", "reorder", "reframe"] = "rewrite"
@@ -181,6 +186,7 @@ class ConsolidatedFeedback(BaseModel):
 
 # ─── Rewriting ────────────────────────────────────────────────────────────
 
+
 class RewrittenBullet(BaseModel):
     original: str
     rewritten: str
@@ -191,7 +197,7 @@ class RewrittenBullet(BaseModel):
 
 class RewrittenSection(BaseModel):
     name: str
-    bullets: List[RewrittenBullet] = Field(default_factory=list)
+    bullets: list[RewrittenBullet] = Field(default_factory=list)
     summary_text: str | None = None
 
 
@@ -206,6 +212,7 @@ class AdaptedCV(BaseModel):
 
 
 # ─── Quality gates ────────────────────────────────────────────────────────
+
 
 class AuthenticityReport(BaseModel):
     ai_smell_score: int = Field(ge=0, le=100, default=0)
@@ -234,8 +241,10 @@ class VerificationReport(BaseModel):
 
 # ─── Search (new subcommand) ──────────────────────────────────────────────
 
+
 class JobOpportunity(BaseModel):
     """A single job opening with an absolute URL for the user to open."""
+
     title: str
     company: str
     location: str
@@ -244,11 +253,17 @@ class JobOpportunity(BaseModel):
     salary_hint: str | None = None
     snippet: str = Field(default="", description="short excerpt from the posting")
     url: str = Field(description="absolute URL to view/download the full posting")
-    apply_url: str | None = Field(None, description="direct application URL if different from listing")
-    source: str = Field(description="job board: linkedin, indeed, glassdoor, wellfound, remoteok, ...")
+    apply_url: str | None = Field(
+        None, description="direct application URL if different from listing"
+    )
+    source: str = Field(
+        description="job board: linkedin, indeed, glassdoor, wellfound, remoteok, ..."
+    )
     match_score: int = Field(ge=0, le=100, default=0)
     why_relevant: str | None = None
-    requirements_summary: list[str] = Field(default_factory=list, description="key requirements from the posting")
+    requirements_summary: list[str] = Field(
+        default_factory=list, description="key requirements from the posting"
+    )
     tech_stack: list[str] = Field(default_factory=list, description="technologies mentioned")
     benefits: str | None = None
     contract_type: str | None = None
@@ -275,6 +290,7 @@ class JobSearchResult(BaseModel):
 
 
 # ─── Final job report ─────────────────────────────────────────────────────
+
 
 class InterviewQuestion(BaseModel):
     question: str
@@ -328,6 +344,7 @@ class RunSummary(BaseModel):
 
 
 # ─── Eval harness (#7) ────────────────────────────────────────────────────
+
 
 class EvalExample(BaseModel):
     name: str

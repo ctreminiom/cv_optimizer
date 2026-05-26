@@ -2,6 +2,7 @@
 
 Adds project root to sys.path so `import src.xxx` works without installing the package.
 """
+
 from __future__ import annotations
 
 import sys

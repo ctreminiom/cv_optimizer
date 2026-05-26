@@ -1,7 +1,6 @@
 """Tests for src/cli/utils.py."""
-from __future__ import annotations
 
-from pathlib import Path
+from __future__ import annotations
 
 from src.cli.utils import (
     classify_role_type,
