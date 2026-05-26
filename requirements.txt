@@ -1,0 +1,29 @@
+crewai[anthropic]>=0.80.0
+crewai-tools>=0.17.0
+anthropic>=0.40.0
+pydantic>=2.7.0
+pydantic-settings>=2.4.0
+python-dotenv>=1.0.0
+python-docx>=1.1.0
+pypdf>=4.0.0
+pdfplumber>=0.11.0
+reportlab>=4.0.0
+requests>=2.31.0
+rich>=13.7.0
+questionary>=2.0.0
+
+# Resilience & observability
+tenacity>=8.5.0
+structlog>=24.1.0
+PyYAML>=6.0.0
+
+# Search-quality pipeline (C1–C4). All optional at runtime — code degrades
+# gracefully when these are missing. Listed here so a default `pip install`
+# gives users the full rerank experience out of the box.
+trafilatura>=1.12.0
+sentence-transformers>=3.0.0
+
+# Optional providers (uncomment if you want them by default):
+# voyageai>=0.3.0
+# openai>=1.40.0
+# langfuse>=2.50.0

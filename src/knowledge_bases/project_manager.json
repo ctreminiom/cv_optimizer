@@ -1,0 +1,54 @@
+{
+  "role_label": "Senior Project Manager",
+  "common_seniority_signals": {
+    "junior": ["coordinated", "scheduled", "tracked progress", "took notes"],
+    "mid":    ["managed project of N people", "delivered on time and budget",
+               "ran sprint planning", "owned roadmap for one team"],
+    "senior": ["managed program across teams", "owned end-to-end delivery of $X",
+               "stakeholder management with C-level", "negotiated scope and timeline",
+               "introduced new process adopted across org"]
+  },
+  "credible_vs_buzzword": {
+    "credible": [
+      "delivered project of N engineers, $X budget, Y week timeline",
+      "introduced async standup format that cut meeting time by N hours/week",
+      "managed cross-functional dependencies across N teams",
+      "ran retrospective program adopted by N teams",
+      "mitigated risk X by introducing checkpoint Y"
+    ],
+    "buzzword_only": [
+      "drove strategic alignment",
+      "facilitated cross-functional synergy",
+      "championed agile transformation",
+      "results-oriented project leader",
+      "delivered impactful outcomes"
+    ]
+  },
+  "common_interview_topics": [
+    "estimation under uncertainty",
+    "handling missed deadlines and stakeholder communication",
+    "prioritization frameworks (RICE, MoSCoW, etc)",
+    "managing scope creep",
+    "team conflict resolution",
+    "tool stack experience (Jira, Asana, Linear, etc)",
+    "agile vs waterfall — when to use which",
+    "post-mortem facilitation"
+  ],
+  "must_have_signals": [
+    "concrete project size + outcomes (people, budget, timeline)",
+    "named delivery framework (Scrum, Kanban, hybrid)",
+    "named tools used in flight",
+    "examples of risk identification and mitigation"
+  ],
+  "common_red_flags_for_seniority": [
+    "claims senior PM but only describes process facilitation, not outcome ownership",
+    "no quantified delivery (no people counts, no budget, no timeline)",
+    "lists certifications (PMP, Scrum Master) without applied examples",
+    "describes 'leading meetings' as primary contribution"
+  ],
+  "framing_opportunities": [
+    "if candidate ran weekly status meetings, reframe as 'instituted reporting cadence that surfaced N risks early'",
+    "if candidate used Jira, frame the actual workflow they designed there",
+    "if candidate dealt with conflict, surface specific resolution outcome"
+  ]
+}

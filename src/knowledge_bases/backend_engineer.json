@@ -1,0 +1,54 @@
+{
+  "role_label": "Senior Backend Engineer",
+  "common_seniority_signals": {
+    "junior": ["learning", "supported", "assisted with", "first project"],
+    "mid":    ["owned feature", "shipped service", "led migration of small system"],
+    "senior": ["designed architecture", "owned service in production",
+               "led incident response", "mentored", "set technical direction"],
+    "staff":  ["org-wide impact", "cross-team initiative", "platform decision",
+               "wrote RFC adopted across teams"]
+  },
+  "credible_vs_buzzword": {
+    "credible": [
+      "reduced p99 latency from X ms to Y ms",
+      "migrated N services from monolith to microservices",
+      "built rate limiter using token bucket with Redis",
+      "introduced circuit breaker pattern, cut cascading failures by N",
+      "replaced REST with gRPC for internal RPC, saved Z bandwidth"
+    ],
+    "buzzword_only": [
+      "leveraged synergies",
+      "drove transformative outcomes",
+      "innovative solutions",
+      "results-driven engineer",
+      "delivered scalable solutions"
+    ]
+  },
+  "common_interview_topics": [
+    "system design at scale",
+    "concurrency and race conditions in the candidate's primary language",
+    "database indexing and query optimization",
+    "distributed systems failure modes",
+    "API versioning and backwards compatibility",
+    "observability — when to log vs metric vs trace",
+    "testing strategy for services with external dependencies",
+    "incident response playbook"
+  ],
+  "must_have_signals": [
+    "production experience with at least one statically-typed language",
+    "experience with at least one RDBMS at scale",
+    "exposure to containers (Docker)",
+    "exposure to CI/CD"
+  ],
+  "common_red_flags_for_seniority": [
+    "claims senior but no examples of incident response or on-call",
+    "claims senior but no examples of mentoring or technical leadership",
+    "lists 15+ technologies with no depth signals on any",
+    "describes infrastructure work but never names specific tools (k8s, terraform, etc)"
+  ],
+  "framing_opportunities": [
+    "if candidate did 'collaborated on CI pipelines', reframe as 'contributed to CI architecture (specify what)'",
+    "if candidate did 'helped debug production issues', reframe as 'participated in incident response for X type of issue'",
+    "if candidate did personal Go projects and job needs Go, surface them prominently with link"
+  ]
+}

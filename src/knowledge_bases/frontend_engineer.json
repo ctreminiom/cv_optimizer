@@ -1,0 +1,50 @@
+{
+  "role_label": "Senior Frontend Engineer",
+  "common_seniority_signals": {
+    "junior": ["built component", "fixed bug", "implemented design"],
+    "mid": ["owned feature", "shipped to production", "improved performance"],
+    "senior": ["set frontend architecture", "led design system",
+               "owned accessibility", "mentored team"]
+  },
+  "credible_vs_buzzword": {
+    "credible": [
+      "reduced bundle size from N KB to M KB via code-splitting",
+      "improved LCP from N s to M s",
+      "built design system adopted by N teams",
+      "migrated app from class components to hooks across N modules",
+      "added i18n support for N locales"
+    ],
+    "buzzword_only": [
+      "passionate about user experience",
+      "results-driven frontend developer",
+      "delivered pixel-perfect designs",
+      "leveraged modern web technologies"
+    ]
+  },
+  "common_interview_topics": [
+    "rendering performance — virtual DOM, reconciliation, memoization",
+    "state management trade-offs (Redux, Zustand, Jotai, server state)",
+    "bundling and code splitting (Vite, Webpack, esbuild)",
+    "accessibility (ARIA, keyboard nav, screen readers)",
+    "testing pyramid (unit, integration, E2E)",
+    "TypeScript depth — generics, conditional types",
+    "CSS architecture (CSS-in-JS, utility-first, BEM)"
+  ],
+  "must_have_signals": [
+    "fluency in at least one modern framework (React/Vue/Svelte/Angular)",
+    "TypeScript experience",
+    "production experience with build tools and bundlers",
+    "accessibility awareness"
+  ],
+  "common_red_flags_for_seniority": [
+    "only describes UI implementation, no architectural decisions",
+    "no performance optimization stories",
+    "no accessibility mentions",
+    "claims senior but only worked on isolated components"
+  ],
+  "framing_opportunities": [
+    "if candidate built reusable components, surface design system contribution",
+    "if candidate did performance work, name the metric (LCP, FID, CLS)",
+    "if candidate worked with designers, surface design-eng collaboration patterns"
+  ]
+}

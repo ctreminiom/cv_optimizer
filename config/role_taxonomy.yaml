@@ -1,0 +1,101 @@
+# Role-synonym taxonomy.
+#
+# Used by the search command for query expansion and by the LLM judge for
+# role-match scoring. Each canonical key maps to recruiter-facing synonyms
+# observed in real job postings (CR/LATAM/global). Keep entries lowercase.
+
+product_manager:
+  - pm
+  - sr pm
+  - sr. pm
+  - senior product manager
+  - lead product manager
+  - principal product manager
+  - product owner
+  - po
+  - product lead
+
+project_manager:
+  - pmp
+  - sr project manager
+  - it project manager
+  - ti project manager
+  - program manager
+  - delivery manager
+  - scrum master
+
+backend_engineer:
+  - backend developer
+  - back-end engineer
+  - backend software engineer
+  - server engineer
+  - api engineer
+  - go engineer
+  - golang engineer
+  - python backend
+  - node backend
+
+frontend_engineer:
+  - frontend developer
+  - front-end engineer
+  - ui engineer
+  - react engineer
+  - vue engineer
+  - web developer
+
+fullstack_engineer:
+  - full stack engineer
+  - full-stack developer
+  - fullstack developer
+  - software engineer
+
+devops_engineer:
+  - sre
+  - site reliability engineer
+  - platform engineer
+  - infrastructure engineer
+  - cloud engineer
+  - reliability engineer
+
+data_scientist:
+  - ml engineer
+  - machine learning engineer
+  - applied scientist
+  - research scientist
+  - ai engineer
+  - data science lead
+
+data_engineer:
+  - analytics engineer
+  - etl engineer
+  - data platform engineer
+  - bi engineer
+
+marketing_manager:
+  - growth marketing manager
+  - digital marketing manager
+  - field marketing manager
+  - brand manager
+  - marketing director
+
+go_to_market_manager:
+  - gtm
+  - go-to-market
+  - product marketing manager
+  - launch manager
+
+community_manager:
+  - community lead
+  - community senior
+  - community ops
+
+incident_manager:
+  - on-call manager
+  - sre lead
+  - incident commander
+  - sev manager
+
+sourcing_manager:
+  - procurement manager
+  - vendor manager
+  - supply manager

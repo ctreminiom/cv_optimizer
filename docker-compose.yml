@@ -1,0 +1,61 @@
+# Compose file for local development.
+#
+#   docker compose build              # build the image
+#   docker compose run --rm cli ...   # run any cv-optimizer subcommand
+#   docker compose run --rm test      # run pytest
+#   docker compose up dev             # interactive shell with the source mounted
+#
+# Real CV/job data lives under ./cv and ./jobs on the host; both are mounted
+# so the container reads them at runtime. Output and cache directories are
+# also mounted so generated reports survive the container exiting.
+
+services:
+  # Default service — invoke any cv-optimizer subcommand.
+  cli:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: cv-optimizer:latest
+    env_file:
+      - .env
+    volumes:
+      - ./cv:/app/cv
+      - ./jobs:/app/jobs
+      - ./output:/app/output
+      - ./cache:/app/cache
+      - ./eval:/app/eval
+    working_dir: /app
+
+  # Source-mounted dev container — code changes apply without rebuilding.
+  dev:
+    extends:
+      service: cli
+    volumes:
+      - ./src:/app/src
+      - ./config:/app/config
+      - ./main.py:/app/main.py
+      - ./tests:/app/tests
+      - ./scripts:/app/scripts
+      - ./cv:/app/cv
+      - ./jobs:/app/jobs
+      - ./output:/app/output
+      - ./cache:/app/cache
+      - ./eval:/app/eval
+    entrypoint: ["/bin/bash"]
+    command: ["-l"]
+    stdin_open: true
+    tty: true
+
+  # `docker compose run --rm test` — run the unit-test suite in the image.
+  test:
+    extends:
+      service: cli
+    volumes:
+      - ./src:/app/src
+      - ./tests:/app/tests
+      - ./main.py:/app/main.py
+      - ./config:/app/config
+      - ./scripts:/app/scripts
+      - ./eval:/app/eval
+    entrypoint: ["python", "-m", "pytest"]
+    command: ["-q", "tests/"]

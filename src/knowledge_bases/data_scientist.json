@@ -1,0 +1,51 @@
+{
+  "role_label": "Senior Data Scientist",
+  "common_seniority_signals": {
+    "junior": ["built notebook", "trained model", "performed analysis"],
+    "mid": ["shipped model to production", "owned feature engineering",
+            "A/B tested change", "improved metric by X"],
+    "senior": ["set ML strategy", "owned model lifecycle end-to-end",
+               "introduced experimentation framework", "mentored DS team"]
+  },
+  "credible_vs_buzzword": {
+    "credible": [
+      "improved model AUC from 0.78 to 0.84 by adding N features",
+      "reduced inference latency from N ms to M ms via quantization",
+      "designed A/B test with N users, lifted metric by Y%",
+      "built feature pipeline serving 10M predictions/day",
+      "replaced black-box model with interpretable one to satisfy compliance"
+    ],
+    "buzzword_only": [
+      "leveraged AI to drive insights",
+      "passionate about machine learning",
+      "delivered AI-powered solutions",
+      "innovative ML approaches"
+    ]
+  },
+  "common_interview_topics": [
+    "bias-variance tradeoff and when each matters",
+    "experimental design and statistical power",
+    "feature leakage detection",
+    "model monitoring in production",
+    "fairness and bias auditing",
+    "SQL window functions",
+    "trade-offs between deep learning and classical methods",
+    "metric design — choosing the right north star"
+  ],
+  "must_have_signals": [
+    "quantified model performance metrics",
+    "production deployment experience (not just notebooks)",
+    "named tools (PyTorch/TensorFlow/scikit-learn, MLflow, etc)",
+    "SQL fluency at scale"
+  ],
+  "common_red_flags_for_seniority": [
+    "only Kaggle / coursework projects, no production work",
+    "no monitoring or post-deployment iteration story",
+    "metrics without business context (model accuracy without why it matters)"
+  ],
+  "framing_opportunities": [
+    "if candidate did EDA, surface the actionable decision it informed",
+    "if candidate built a model, name the metric it moved and by how much",
+    "if candidate deployed via ML platform, name the platform and ownership scope"
+  ]
+}

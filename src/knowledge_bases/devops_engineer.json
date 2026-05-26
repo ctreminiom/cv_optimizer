@@ -1,0 +1,50 @@
+{
+  "role_label": "Senior DevOps / SRE Engineer",
+  "common_seniority_signals": {
+    "junior": ["wrote Dockerfile", "set up CI workflow", "deployed to k8s"],
+    "mid": ["owned platform component", "ran on-call", "automated repetitive task"],
+    "senior": ["designed platform strategy", "led incident retros",
+               "set SLIs/SLOs", "introduced infra-as-code adopted org-wide"]
+  },
+  "credible_vs_buzzword": {
+    "credible": [
+      "reduced deploy time from 30 min to 4 min via parallelization",
+      "introduced GitOps with ArgoCD across N services",
+      "wrote Terraform modules consumed by M teams",
+      "cut AWS bill by N% by rightsizing and reserved instances",
+      "established SLO framework with X% error budget"
+    ],
+    "buzzword_only": [
+      "champion of DevOps culture",
+      "results-driven SRE",
+      "passionate about automation",
+      "leveraged cloud-native technologies"
+    ]
+  },
+  "common_interview_topics": [
+    "incident response and blameless post-mortems",
+    "blue/green vs canary vs rolling deployment trade-offs",
+    "k8s networking and ingress",
+    "secrets management at scale",
+    "cost optimization on AWS/GCP/Azure",
+    "observability — metrics, logs, traces, when to use each",
+    "infra-as-code patterns (Terraform modules, Helm, Pulumi)"
+  ],
+  "must_have_signals": [
+    "production experience with at least one cloud (AWS/GCP/Azure)",
+    "container orchestration depth (k8s, Nomad, ECS)",
+    "named CI/CD tool with concrete pipeline examples",
+    "on-call experience"
+  ],
+  "common_red_flags_for_seniority": [
+    "lists 5+ clouds with no depth in any",
+    "no concrete incident or outage story",
+    "no SLI/SLO awareness",
+    "describes 'pressing the deploy button' as ownership"
+  ],
+  "framing_opportunities": [
+    "if candidate wrote Dockerfiles, surface the optimization (multi-stage, image size)",
+    "if candidate ran on-call, surface playbook ownership or improvements",
+    "if candidate used k8s, surface specific patterns (operators, CRDs, custom controllers)"
+  ]
+}

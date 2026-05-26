@@ -1,0 +1,39 @@
+{
+  "role_label": "Senior Practitioner",
+  "common_seniority_signals": {
+    "junior": ["learning", "supported", "assisted with"],
+    "mid": ["owned", "delivered", "led"],
+    "senior": ["set strategy", "mentored", "owned end-to-end", "drove org-wide change"]
+  },
+  "credible_vs_buzzword": {
+    "credible": [
+      "specific outcomes with quantified impact",
+      "named tools, frameworks, or processes",
+      "concrete examples of decision-making"
+    ],
+    "buzzword_only": [
+      "results-driven", "passionate", "innovative", "synergy",
+      "leveraged", "transformative outcomes"
+    ]
+  },
+  "common_interview_topics": [
+    "problem decomposition and prioritization",
+    "communication with technical and non-technical stakeholders",
+    "handling ambiguity",
+    "post-mortems and learning from failure"
+  ],
+  "must_have_signals": [
+    "concrete examples of ownership",
+    "quantified outcomes where applicable",
+    "named tools and frameworks"
+  ],
+  "common_red_flags_for_seniority": [
+    "buzzword-heavy with no specifics",
+    "no quantified impact",
+    "claims leadership without examples"
+  ],
+  "framing_opportunities": [
+    "convert generic 'helped with X' into specific contribution",
+    "convert process descriptions into outcome statements"
+  ]
+}

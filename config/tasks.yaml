@@ -1,0 +1,304 @@
+# config/tasks.yaml — CV Optimizer v2
+
+# ─── PHASE 1 — INGESTION ──────────────────────────────────────────────────
+
+parse_job_task:
+  description: >
+    Parse the job posting at "{job_path}" using parse_job_pdf, then
+    structure the raw_text into a complete JobPosting:
+    - title, company, location, modality, seniority, salary_range
+    - role_type as a canonical token like "backend_engineer",
+      "project_manager", "data_scientist"
+    - tech_stack: explicit + clearly implied technologies
+    - responsibilities, requirements (each categorized + prioritized),
+      ats_keywords (top 15-20), cultural_signals
+    Never invent. Use null/unknown when unclear.
+  expected_output: >
+    A JSON object matching the JobPosting Pydantic schema.
+
+parse_cv_task:
+  description: >
+    Parse the master CV at "{cv_docx_path}" using parse_cv. The tool
+    auto-detects format — DOCX or PDF — and returns paragraphs (with
+    style hints) plus a `source_format` field. Build a complete
+    CandidateProfile preserving every work experience, bullet, and
+    technology verbatim. They will be rewritten later.
+    Never inflate. Mark unknown dates as unknown.
+    Note: if source_format is "pdf", `can_use_as_template` will be
+    false — the renderer will build a fresh DOCX instead of reusing
+    the master as a styling template.
+  expected_output: >
+    A single raw JSON object (no markdown fences, no prose) matching the
+    CandidateProfile schema EXACTLY, using these field names and shapes:
+    {
+      "source_file": "<path>",
+      "full_name": "<string>",
+      "headline": "<string or null>",
+      "summary": "<string or null>",
+      "contact": {"email": "...", "phone": "...", "location": "..."},
+      "work_experience": [
+        {"company": "...", "title": "...", "start_date": "...",
+         "end_date": "Present", "location": "...",
+         "bullets": ["..."], "technologies": ["..."]}
+      ],
+      "education": [
+        {"institution": "...", "degree": "...", "field": "...",
+         "start_date": "...", "end_date": "..."}
+      ],
+      "skills": ["flat", "list", "of", "skill", "strings"],
+      "languages": ["English (native)", "Spanish (native)"],
+      "certifications": ["flat list of certification name strings"]
+    }
+    IMPORTANT: "skills" MUST be a flat array of strings — never an object
+    grouped by category. "certifications" MUST be a flat array of strings.
+    Use the exact field names above (full_name, not candidate_name;
+    headline, not professional_title).
+
+extract_voice_task:
+  description: >
+    Run extract_voice_signature on the candidate's master CV text. Then
+    populate signature_phrases with 3-5 phrases that appear verbatim in
+    the original CV. The representative_bullets returned by the tool
+    will be used by the Rewriter and Authenticity Agent as few-shot
+    exemplars (#4) — verify they look natural and edit the list if needed.
+  expected_output: >
+    A JSON object matching the VoiceSignature Pydantic schema with
+    representative_bullets populated.
+
+# ─── PHASE 2 — EVALUATION (run in parallel via async_execution=True) ─────
+
+hr_evaluation_task:
+  description: >
+    Evaluate candidate vs job from senior HR perspective. Return:
+    - fit_score 0-100
+    - confidence 0-100 (your own self-assessed confidence)
+    - strengths, weaknesses, red_flags, recommendations
+    - uncertain_items: list of things you could not confidently judge
+      from the CV alone (the user will verify these themselves)
+  expected_output: >
+    AgentEvaluation JSON with agent_role = "HR Specialist".
+
+hiring_manager_evaluation_task:
+  description: >
+    Evaluate from a hiring manager's perspective. Which achievements map
+    to this role? Which strong experiences are undersold? Which are
+    irrelevant? Is the seniority claim credible? Track confidence and
+    surface uncertain_items.
+  expected_output: >
+    AgentEvaluation JSON with agent_role = "Hiring Manager".
+
+technical_evaluation_task:
+  description: >
+    First, call load_domain_knowledge_base with the role_type to get the
+    curated knowledge for this exact role. Then evaluate technical
+    credibility against the must-haves. Identify missing critical stack.
+    Recommend specific reframing of adjacent experience. Detect
+    buzzword-stuffing without substance. Surface uncertain items.
+  expected_output: >
+    AgentEvaluation JSON with agent_role = "Senior {role_type}".
+
+ats_evaluation_task:
+  description: >
+    Use compute_keyword_match with job text, CV text, and JobPosting
+    ats_keywords. Build a complete ATSReport with match_pct, missing
+    and overused keywords, format issues, and a list of
+    {keyword, context} suggestions telling the Rewriter where to inject.
+  expected_output: >
+    ATSReport JSON.
+
+gap_analysis_task:
+  description: >
+    Compare every must-have requirement against the CandidateProfile.
+    Produce a GapAnalysis with critical_gaps (must-haves with no CV
+    evidence), minor_gaps (missing nice-to-haves), and
+    framing_opportunities (specific bullets to reframe).
+  expected_output: >
+    GapAnalysis JSON.
+
+# ─── Tiebreaker (#14) ────────────────────────────────────────────────────
+
+second_opinion_task:
+  description: >
+    Examine the fit_scores from the HR Specialist, Hiring Manager, and
+    Technical Specialist. If the spread is <= 30 points, return
+    triggered=false and final_score = average. If the spread is > 30
+    points, examine the disagreement carefully and return triggered=true
+    with a final_score that reflects the strongest evidence on either
+    side, plus a one-paragraph rationale.
+  expected_output: >
+    SecondOpinion JSON.
+
+# ─── Optional — competitor simulation (#17) ──────────────────────────────
+
+competitor_simulation_task:
+  description: >
+    Generate a hypothetical strong-fit candidate's profile based on the
+    JobPosting's must-have requirements. Then list:
+    - differentiators: things this hypothetical competitor would have
+      that the actual candidate does NOT
+    - candidate_advantages: things the actual candidate has that this
+      competitor would not
+    Be specific and grounded in the actual job posting requirements.
+  expected_output: >
+    CompetitorProfile JSON.
+
+# ─── PHASE 3 — SYNTHESIS ─────────────────────────────────────────────────
+
+consolidate_feedback_task:
+  description: >
+    Read all evaluations (HR, Hiring Manager, Technical, ATS), the
+    GapAnalysis, and the SecondOpinion. Produce a ConsolidatedFeedback:
+    - overall_match_score weighting the SecondOpinion final_score when
+      triggered, otherwise weighted average
+    - overall_confidence as the minimum of agent confidences (a system
+      is only as confident as its least-confident component)
+    - executive_summary: 3-5 sentences
+    - prioritized_changes by impact-vs-effort, tagged with source agents
+    - contradictions_resolved
+  expected_output: >
+    Output ONLY a single raw JSON object — no markdown fences, no prose
+    before or after. It MUST match this exact shape (at least 3
+    prioritized_changes, executive_summary at least 3 sentences):
+    {
+      "overall_match_score": <int 0-100>,
+      "overall_confidence": <int 0-100>,
+      "executive_summary": "<3-5 sentences>",
+      "prioritized_changes": [
+        {
+          "target_section": "<str>",
+          "change_type": "add|remove|rewrite|reorder|reframe",
+          "description": "<str>",
+          "impact": "low|medium|high",
+          "effort": "low|medium|high",
+          "source_agents": ["<agent role>"]
+        }
+      ],
+      "contradictions_resolved": ["<str>"]
+    }
+
+# ─── PHASE 4 — GENERATION + QUALITY GATES ────────────────────────────────
+
+rewrite_cv_task:
+  description: >
+    Using the CandidateProfile, JobPosting, ConsolidatedFeedback, AND
+    the VoiceSignature (especially representative_bullets), generate an
+    AdaptedCV. For EACH bullet, after writing the new version:
+    1. Call self_critique_bullet to flag unsupported claims (#5).
+    2. If issues are returned, fix the bullet before moving on.
+    3. Mark fabrication_check = "needs_review" only if you couldn't
+       resolve a self-critique flag.
+    Use the candidate's representative_bullets as your style anchor (#4).
+    Never alter dates, companies, titles, or numerical facts.
+    For multi-pass ATS scoring (#13), call compute_keyword_match after
+    each section to track progress and adjust accordingly.
+  expected_output: >
+    A JSON object matching the AdaptedCV schema with ALL of these fields
+    present: job_title (str), company (str), target_role_type (str),
+    summary (str), sections (list of RewrittenSection objects, each with
+    name and bullets), keywords_injected (list of keyword strings injected
+    into the CV), word_count (int total word count of the adapted CV).
+
+humanize_cv_task:
+  description: >
+    Read the AdaptedCV draft AND the candidate's VoiceSignature
+    (especially representative_bullets — those are your style model).
+    Run detect_ai_smell on the full text. Then rewrite bullets that:
+    - contain banned buzzwords (results-driven, dynamic, passionate,
+      spearheaded, leverage, etc.)
+    - have uniform sentence starters (vary the opener)
+    - report metrics without methodology context
+    Match the candidate's formality_level and avg_bullet_word_count.
+  expected_output: >
+    AuthenticityReport JSON. If passes=false, the next task will retry.
+
+humanize_retry_task:
+  description: >
+    If the previous AuthenticityReport.passes is false, take the
+    suggested_revisions and apply them carefully — rewriting in the
+    candidate's voice (use representative_bullets as exemplars).
+    Re-run detect_ai_smell. Increment iteration. Cap at 3 iterations
+    total (#3). If still failing after 3 attempts, return passes=false
+    and let the user manually adjust.
+    If the previous AuthenticityReport.passes is already true,
+    pass through unchanged with iteration=1.
+  expected_output: >
+    AuthenticityReport JSON (final).
+
+mirroring_check_task:
+  description: >
+    Run detect_mirroring with the job posting text and the humanized
+    CV text. If similarity >= 0.3, identify the mirrored phrases and
+    rewrite them using the candidate's own framing — pulling vocabulary
+    from their VoiceSignature representative_bullets.
+  expected_output: >
+    MirroringReport JSON plus the final CV text.
+
+verification_task:
+  description: >
+    Run compute_cv_diff on original vs adapted CV. Then audit manually:
+    - any company, title, date, number in adapted but not original
+    - any verb escalation (collaborated → led, helped → spearheaded)
+    - any scope claim (team size, budget) not in original
+    Block delivery if anything is fabricated. Be strict.
+  expected_output: >
+    VerificationReport JSON.
+
+interview_prep_task:
+  description: >
+    Generate 5-8 likely interview questions based on the JobPosting and
+    ConsolidatedFeedback. For each question explain WHY it is likely
+    (what triggered it) and suggest an angle the candidate can take
+    using their REAL experience.
+  expected_output: >
+    A JSON list of InterviewQuestion items.
+
+cover_letter_task:
+  description: >
+    Generate a cover letter (250-350 words) that complements the
+    adapted CV. Match the company's cultural tone from cultural_signals.
+    Reference 2-3 specific things from the candidate's real experience.
+    Avoid every banned buzzword from the Authenticity Agent.
+  expected_output: >
+    CoverLetter JSON.
+
+# Output assembly is done deterministically host-side (see
+# _augment_report_from_tasks in main.py), not by an LLM task — so there is no
+# render_outputs_task here.
+
+# ─── Search subcommand ───────────────────────────────────────────────────
+
+search_jobs_task:
+  description: >
+    Given the parsed CandidateProfile, identify the candidate's most
+    likely target role keywords (3-5 short tokens) based on their most
+    recent / most senior experience. Then call search_jobs with:
+      role_keywords, location="{location}", seniority_levels="{seniority_levels}",
+      modality="{modality}", max_results={max_results}
+    The tool will run one search per seniority level and stamp each result
+    with the seniority level it was found for.
+
+    CRITICAL OUTPUT RULES — read carefully:
+    1. NEVER invent, fabricate, or hallucinate URLs, job IDs, or
+       company names. Use ONLY URLs returned by the tool, verbatim.
+    2. RETURN ALL opportunities the tool returned in its `opportunities`
+       array. DO NOT drop any item, even items with `link_type: "search_url"`
+       (these are job board search pages — they ARE valid results and
+       MUST be included).
+    3. The tool's response will typically have 13+ opportunities (one
+       per supported job board) PLUS any direct listings from Tavily/Serper.
+       Your output array length should match the tool's `total_found`.
+    4. For each opportunity, populate `why_relevant` with a 1-sentence
+       rationale tied to the candidate's experience. For search_url
+       link_types, why_relevant can be generic (e.g. "Job board search
+       URL filtered for your role and location").
+    5. If you can estimate match_score based on keyword overlap, set it
+       (0-100); otherwise leave 0.
+    6. Copy the `sources_used` and `search_queries_used` arrays from the
+       tool JSON response verbatim into your final output.
+  expected_output: >
+    JobSearchResult JSON. The `opportunities` array MUST contain every
+    item returned by the search_jobs tool — including search_url
+    link_types — with absolute URLs preserved as-is from the tool output.
+    Each opportunity must have a `seniority` field stamped by the tool.
+    `total_found` must equal the length of the `opportunities` array.
+    `sources_used` and `search_queries_used` are copied verbatim.

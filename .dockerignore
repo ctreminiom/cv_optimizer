@@ -1,0 +1,33 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+.git/
+.github/
+docs/
+tests/
+
+# Secrets and personal data — never bake into images
+.env
+.env.*
+!.env.example
+private/
+cv/*.pdf
+!cv/sample_cv.pdf
+jobs/*.md
+!jobs/sample/
+!jobs/README.md
+output/
+cache/
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# OS
+.DS_Store
+Thumbs.db

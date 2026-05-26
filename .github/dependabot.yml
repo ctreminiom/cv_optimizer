@@ -1,0 +1,31 @@
+version: 2
+updates:
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    groups:
+      crewai:
+        patterns:
+          - "crewai*"
+      anthropic:
+        patterns:
+          - "anthropic*"
+      test-tooling:
+        patterns:
+          - "pytest*"
+          - "ruff"
+          - "pre-commit"
+          - "detect-secrets"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "monthly"
